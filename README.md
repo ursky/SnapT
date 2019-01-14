@@ -28,11 +28,28 @@
  
 ## USAGE
  Usage instructions and example run with SnapT. To be added.
+```bash
+Usage: SnapT [options] -1 reads_1.fastq -2 reads_2.fastq -g genome.fa -o output_dir
 
+SnapT options:
+	-1 STR		forward transcriptome (or metatranscriptome) reads
+	-2 SRT		reverse transcriptome (or metatranscriptome) reads (optional)
+	-g STR		genome (or metagenome) fasta file
+	-a STR		genome (or metagenome) annotation gtf file (optional)
+	-o STR          output directory
+
+Aligment options:
+	-t INT          number of threads (default=1)
+	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR). Only for strand-specific RNAseq
+	-I INT		min insert size (def: 0)
+	-X INT		max insert size (def: 500)
+	-m INT		gap distance to close transcripts (def: 50)
+
+	--version | -v	show current SnapT version
+```
 
 ### Citing SnapT
 SnapT is currently under early development. Stay tuned for future publication. 
-
 
 ### Acknowledgements
 Authors of pipeline: [Gherman Uritskiy](https://github.com/ursky) and [Diego Gelsinger](https://github.com/dgelsin)
