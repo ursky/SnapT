@@ -13,6 +13,7 @@ requirements:
     - samtools
     - htseq
     - hisat2
+    - gffcompare
 
 about:
   home: https://github.com/ursky/SnapT
