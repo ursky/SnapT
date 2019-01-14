@@ -1,0 +1,21 @@
+package:
+  name: snapt
+  version: "0.1"
+
+source:
+  git_url: https://github.com/ursky/SnapT.git
+
+requirements:
+  build:
+
+  run:
+    - stringtie
+    - samtools
+    - htseq
+    - hisat2
+
+about:
+  home: https://github.com/ursky/SnapT
+  license: MIT
+  license_file: LICENSE
+
