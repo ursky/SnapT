@@ -1,6 +1,6 @@
 **Current SnapT version = 0.1**. To update, run `conda install -c ursky snapt=0.1`
 
-# SnapT - Small ncRNA annotation pipeline for transcriptomic data
+# SnapT - *S*mall *n*cRNA *a*nnotation *p*ipeline for *t*ranscriptomic data
 
  SnapT is a small non-coding RNA discovery pipeline. SnapT leverages transcriptomic or metatranscriptimic data to find, annotate, and quantify intergenic and anti-sense sRNA transcripts. 
 
