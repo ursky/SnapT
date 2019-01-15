@@ -89,6 +89,7 @@ while true; do
         esac
 done
 
+
 ########################################################################################################
 ########################           MAKING SURE EVERYTHING IS SET UP             ########################
 ########################################################################################################
@@ -149,7 +150,7 @@ samtools sort ${OUT}/hisat2/alignment.sam -O BAM -o ${OUT}/hisat2/alignment.bam 
 if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 
 
-comm "Building IGV index from hisat2 alignment_sorted.bam"
+comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam"
 samtools index ${OUT}/hisat2/alignment.bam
 if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
 
@@ -166,7 +167,6 @@ stringtie ${OUT}/hisat2/alignment.bam \
 if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
 
 
-
 ########################################################################################################
 ########################             REMOVE PROTEIN-CODING TRANSCRIPTS          ########################
 ########################################################################################################
@@ -175,12 +175,43 @@ announcement "REMOVE PROTEIN-CODING TRANSCRIPTS"
 comm "Predicting open reading frames with Prodigal"
 prodigal -i $GENOME -f gff -o ${OUT}/prodigal_orfs.gff -q
 if [[ $? -ne 0 ]]; then error "PRODIGAL failed to annotate genome. Exiting..."; fi
+
+
+
 ORFS=${OUT}/prodigal_orfs.gff
 
-comm "Intersect the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
-${SOFT}/intersect_gff.py $ORFS ${OUT}/raw_transcripts.gff ${OUT}/intergenic_transcripts.gff ${OUT}/antisense_transcripts.gff
+comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
+${SOFT}/intersect_gff.py $ORFS ${OUT}/raw_transcripts.gff > ${OUT}/ncRNA.gff
 if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
- 
+
+if [[ $ANNOTATION != none ]]; then
+	comm "Intersecting the transcripts with the provided annotation in $ANNOTATION"
+	${SOFT}/intersect_gff.py $ANNOTATION ${OUT}/raw_transcripts.gff > ${OUT}/ncRNA.anno.gff
+	if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the provided annotation. Exiting..."; fi
+
+	comm "Consolidating intergenic and antisense transcripts predicted from ORFs and $ANNOTATION"
+	mv ${OUT}/ncRNA.gff ${OUT}/ncRNA.orf.gff
+	${SOFT}/consolidate_transcripts.py ${OUT}/ncRNA.orf.gff ${OUT}/ncRNA.anno.gff > ${OUT}/ncRNA.gff
+	if [[ $? -ne 0 ]]; then error "Transcript consolidation failed. Exiting..."; fi
+fi
+
+mkdir ${OUT}/transcript_assembly
+mv ${OUT}/*gff ${OUT}/transcript_assembly
+cp ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/nc_rna.gff
+
+
+########################################################################################################
+########################               CURATE NON-CODING TRANSCRIPTS            ########################
+########################################################################################################
+announcement "CURATE NON_CODING TRANSCRIPTS"
+
+mkdir ${OUT}/srna_curation
+mv ${OUT}/nc_rna.gff ${OUT}/srna_curation/raw_nc_transcripts.gff
+
+comm "dynamically thresholding transcripts that are too close to a contig's edge"
+${SOFT}/positional_thresholding.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.gff > ${OUT}/srna_curation/good_nc_transcripts.gff
+if [[ $? -ne 0 ]]; then error "Failed to remove transcripts close to contig edges. Exiting..."; fi
+cp ${OUT}/srna_curation/good_nc_transcripts.gff ${OUT}/nc_transcripts.gff
 
 
 ########################################################################################################

@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys
+#usage: intersect_gff.py annotation.gff transcripts.gff nc_transcripts.gff
 
 def load_gff_coordinates(filename):
 	coordinates={}
@@ -8,23 +9,27 @@ def load_gff_coordinates(filename):
 		if line[0]=="#":
 			continue
 		cut=line.strip().split("\t")
-		
+		if len(cut) != 9:
+			continue
+
 		contig = cut[0]
 		st = int(cut[3])
 		fi = int(cut[4])
 		strand = cut[6]
+		gene = cut[8].split(";")[0]
 	
 		if contig not in coordinates:
 			coordinates[contig]={}
 			coordinates[contig]["+"]=[]
 			coordinates[contig]["-"]=[]
 
-		coordinates[contig][strand].append((st,fi))
+		coordinates[contig][strand].append((st,fi,gene))
 	return coordinates
 
 
 def intersect(st, fi, strand_coordinates, dist):
 	diagnosis="intergenic"
+	coordinate=(0,1,"NA")
 	for i,coordinate in enumerate(strand_coordinates):
 		# middle of gene
 		if st>=coordinate[0] and fi<=coordinate[1]:
@@ -56,7 +61,7 @@ def intersect(st, fi, strand_coordinates, dist):
 			break
 		else:
 			diagnosis="ambiguous"
-	return diagnosis
+	return diagnosis, coordinate[2]
 
 
 
@@ -84,37 +89,30 @@ def load_transcripts_gff(filename, orfs, dist):
 
 		# check if this transcript is intergenic on the strand that its expressed on
 		strand_coordinates = orfs[contig][strand]
-		diagnosis = intersect(st, fi, strand_coordinates, dist)
+		diagnosis,gene = intersect(st, fi, strand_coordinates, dist)
 
 		# if the transcript is intergenic, check if there is a gene on the other strand
 		if diagnosis=="intergenic":
 			strand_coordinates = orfs[contig][other_strand[strand]]
-			opposite_strand_diagnosis = intersect(st, fi, strand_coordinates, 0)
+			opposite_strand_diagnosis,opposite_gene = intersect(st, fi, strand_coordinates, 0)
 			if opposite_strand_diagnosis=="gene":
 				diagnosis = "antisense"
 
 		if diagnosis=="intergenic":
 			cut[2]="intergenic transcript"
 			intergenic+="\t".join(cut)+"\n"
+			print "\t".join(cut)
 		if diagnosis=="antisense":
 			cut[2]="antisense transcript"
+			cut[8]=cut[8]+' antisense_to_gene "'+opposite_gene+'";'
 			antisense+="\t".join(cut)+"\n"
+			print "\t".join(cut)
 	return intergenic, antisense
 
 
 MIN_DISTANCE_TO_GENE=30
 ORFs = load_gff_coordinates(sys.argv[1])
 intergenic, antisense = load_transcripts_gff(sys.argv[2], ORFs, MIN_DISTANCE_TO_GENE)
-
-
-f1 = open(sys.argv[3], "w")
-f2 = open(sys.argv[4], "w")
-
-f1.write(intergenic)
-f2.write(antisense)
-
-f1.close()
-f2.close()
 
 
 
