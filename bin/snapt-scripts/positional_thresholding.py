@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import sys
-# usage: positional_thresholding.py assembly.fa nc_rna.gff 
+# usage: positional_thresholding.py assembly.fa nc_rna.gff out_file.gff
 # This script computes the optimal cut-off for the minimum distance of a ncRNA to the contig edge
 
 def load_contigs(filename):
@@ -32,15 +32,17 @@ def load_transcripts(filename, lengths):
 	return distances
 
 
-def filter_transcripts(filename, lengths, min_dist):
+def filter_transcripts(filename, lengths, min_dist, outfile):
+	print "Filtering out transcripts that are less than "+str(min_dist)+"bp away from a contig edge..."
+	f = open(outfile, "w")
+	ct=0
 	for line in open(filename):
-		line=line.strip()
 		if line[0]=="#":
-			print line
+			f.write(line)
 			continue
 		cut=line.split("\t")
 		if len(cut)!=9:
-			print line
+			f.write(line)
 			continue
 		contig=cut[0]
 		st = int(cut[3])
@@ -48,7 +50,11 @@ def filter_transcripts(filename, lengths, min_dist):
 		
 		distance_to_end = min(st, lengths[contig]-fi)
 		if distance_to_end > min_dist:
-			print line
+			f.write(line)
+		else:
+			ct+=1
+	print "Removed "+str(ct)+" transcripts that were too close to contig edges."
+	f.close()
 			
 
 def compute_statistics(contig_lengths, positions, bin_size):
@@ -80,23 +86,26 @@ def compute_statistics(contig_lengths, positions, bin_size):
 def optimize_cut_off(contig_lengths, positions):
 	cut_off=10
 	while True:
-		# computing overrepresentation at cut off cut_off
+		print "Computing overrepresentation at cut off: "+ str(cut_off)
 		representation = compute_statistics(contig_lengths, positions, cut_off)
-		ratio1 = representation[0]/representation[1]
+		print representation[0], representation[1], representation[2], representation[3], representation[4]
+		if representation[2]==0 or representation[3]==0:
+			cut_off+=10
+			continue
 		ratio2 = representation[1]/representation[2]
 		ratio3 = representation[2]/representation[3]
-		ratio4 = representation[3]/representation[4]
 
 		if ratio2<1.5 and ratio2>0.75 and ratio3<1.5 and ratio3>0.75:
 			break
 		cut_off+=10
-		if cut_off>1000:
+		if cut_off>500:
 			break
+	print "Looks like using a minimum distance of "+str(cut_off+10)+" is safe!"
 	return cut_off+10
 		
 
 contig_lengths = load_contigs(sys.argv[1])
 positions = load_transcripts(sys.argv[2], contig_lengths)
 cut_off = optimize_cut_off(contig_lengths, positions)
-filter_transcripts(sys.argv[2], contig_lengths, cut_off)
+filter_transcripts(sys.argv[2], contig_lengths, cut_off, sys.argv[3])
 

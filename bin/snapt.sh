@@ -97,11 +97,15 @@ done
 if [[ $OUT == none ]] || [[ $READS1 == none ]] || [[ $GENOME == none ]]; then 
 	comm "Some non-optional parameters (-1 -g -o) were not entered"
 	help_message; exit 1
+elif [ ! -s $READS1 ]; then
+	error "Read file $READS1 does not exist, or is empty. Exiting."
+elif [ ! -s $GENOME ]; then
+	error "Genome/metagenome file $GENOME does not exist, or is empty. Exiting."
 fi
 
 # Check for correctly configured snapt-scripts folder
 if [ ! -s $SOFT/print_comment.py ]; then
-	error "The folder $SOFT doesnt exist. Please make sure that the snapt-scripts folder is in the same directory as snapt.sh"
+	error "The folder $SOFT does not exist or is not configured. Please make sure that the snapt-scripts folder is in the same directory as snapt.sh"
 fi
 
 announcement "BEGIN PIPELINE!"
@@ -110,7 +114,7 @@ if [ ! -d $OUT ]; then
         mkdir $OUT
 	if [ ! -d $OUT ]; then error "cannot make $OUT"; fi
 else
-        warning "Warning: $OUT already exists. It is recommended that you clear this directory to prevent any conflicts"
+        warning "Warning: $OUT already exists. SnapT will attempt to continue the existing progress, but it is still recommended that you clear this directory to prevent any conflicts"
 	#rm -r ${OUT}/*
 fi
 
@@ -120,83 +124,94 @@ fi
 ########################################################################################################
 announcement "ALIGN RNA READS TO GENOME WITH HISAT2"
 
-comm "Building Hisat2 index from reference genome"
 mkdir ${OUT}/hisat2
-cp $GENOME ${OUT}/hisat2/genome.fa
-hisat2-build ${OUT}/hisat2/genome.fa ${OUT}/hisat2/hisat2_index \
-	 -p $THREADS --quiet
-if [[ $? -ne 0 ]]; then error "Hisat2 index could not be build. Exiting..."; fi
-
-
-comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
-if [[ $READS2 == none ]];then
-	hisat2 -p 20 --verbose --no-spliced-alignment\
-	 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
-	 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
-	 -x ${OUT}/hisat2/hisat2_index\
-	 -U $READS1 -S ${OUT}/hisat2/alignment.sam
+if [[ -s ${OUT}/hisat2/hisat2_index.1.ht2 ]]; then
+	comm "Looks like the Hisat2 index already exists in the output directory. Skipping..."
 else
-	hisat2 -p 20 --verbose --no-spliced-alignment\
-	 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
-	 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
-	 -x ${OUT}/hisat2/hisat2_index\
-	 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2/alignment.sam
+	comm "Building Hisat2 index from reference genome"
+	cp $GENOME ${OUT}/hisat2/genome.fa
+	hisat2-build ${OUT}/hisat2/genome.fa ${OUT}/hisat2/hisat2_index \
+	 -p $THREADS --quiet
+	if [[ $? -ne 0 ]]; then error "Hisat2 index could not be build. Exiting..."; fi
 fi
-if [[ $? -ne 0 ]]; then error "Hisat2 alignment failed. Exiting..."; fi
 
 
-comm "Sorting hisat2 SAM alignment file and converting it to BAM format"
-samtools sort ${OUT}/hisat2/alignment.sam -O BAM -o ${OUT}/hisat2/alignment.bam -@ $THREADS
-if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 
+if [[ -s ${OUT}/hisat2/alignment.bam ]]; then
+	comm "Looks like the alignment files aready exist in the output directory. Skipping..."
+else
+	comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
+	if [[ $READS2 == none ]];then
+		hisat2 -p 20 --verbose --no-spliced-alignment\
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
+		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
+		 -x ${OUT}/hisat2/hisat2_index\
+		 -U $READS1 -S ${OUT}/hisat2/alignment.sam
+	else
+		hisat2 -p 20 --verbose --no-spliced-alignment\
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
+		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
+		 -x ${OUT}/hisat2/hisat2_index\
+		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2/alignment.sam
+	fi
+	if [[ $? -ne 0 ]]; then error "Hisat2 alignment failed. Exiting..."; fi
 
-comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam"
-samtools index ${OUT}/hisat2/alignment.bam
-if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
+	comm "Sorting hisat2 SAM alignment file and converting it to BAM format"
+	samtools sort ${OUT}/hisat2/alignment.sam -O BAM -o ${OUT}/hisat2/alignment.bam -@ $THREADS
+	if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 
+	comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam"
+	samtools index ${OUT}/hisat2/alignment.bam
+	if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
+fi
 
 ########################################################################################################
 ########################              ASSEMBLE DE-NOVO TRANSCRIPTS              ########################
 ########################################################################################################
 announcement "ASSEMBLE DE-NOVO TRANSCRIPTS"
 
-comm "Building de-novo transcripts and transcriptome expression file"
-stringtie ${OUT}/hisat2/alignment.bam \
-	-o ${OUT}/raw_transcripts.gff \
-	-p $THREADS -m $GAP_VALUE
-if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
-
+mkdir ${OUT}/transcript_assembly
+if [[ -s ${OUT}/transcript_assembly/raw_transcripts.gff ]]; then
+	comm "Looks like the stringtie assembly already exists in the output directory. Skipping..."
+else
+	comm "Building de-novo transcripts and transcriptome expression file"
+	stringtie ${OUT}/hisat2/alignment.bam \
+		-o ${OUT}/transcript_assembly/raw_transcripts.gff \
+		-p $THREADS -m $GAP_VALUE
+	if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
+fi
 
 ########################################################################################################
 ########################             REMOVE PROTEIN-CODING TRANSCRIPTS          ########################
 ########################################################################################################
 announcement "REMOVE PROTEIN-CODING TRANSCRIPTS"
 
-comm "Predicting open reading frames with Prodigal"
-prodigal -i $GENOME -f gff -o ${OUT}/prodigal_orfs.gff -q
-if [[ $? -ne 0 ]]; then error "PRODIGAL failed to annotate genome. Exiting..."; fi
+if [[ -s ${OUT}/transcript_assembly/prodigal_orfs.gff ]]; then
+	comm "Looks like the Prodigal ORF predictions are already made. Skipping..."
+else
+	comm "Predicting open reading frames with Prodigal"
+	prodigal -i $GENOME -f gff -o ${OUT}/transcript_assembly/prodigal_orfs.gff -q
+	if [[ $? -ne 0 ]]; then error "PRODIGAL failed to annotate genome. Exiting..."; fi
+fi
 
 
-
-ORFS=${OUT}/prodigal_orfs.gff
+ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
 
 comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
-${SOFT}/intersect_gff.py $ORFS ${OUT}/raw_transcripts.gff > ${OUT}/ncRNA.gff
+${SOFT}/intersect_gff.py $ORFS ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.gff
 if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
 
 if [[ $ANNOTATION != none ]]; then
 	comm "Intersecting the transcripts with the provided annotation in $ANNOTATION"
-	${SOFT}/intersect_gff.py $ANNOTATION ${OUT}/raw_transcripts.gff > ${OUT}/ncRNA.anno.gff
+	${SOFT}/intersect_gff.py $ANNOTATION ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.anno.gff
 	if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the provided annotation. Exiting..."; fi
 
 	comm "Consolidating intergenic and antisense transcripts predicted from ORFs and $ANNOTATION"
-	mv ${OUT}/ncRNA.gff ${OUT}/ncRNA.orf.gff
-	${SOFT}/consolidate_transcripts.py ${OUT}/ncRNA.orf.gff ${OUT}/ncRNA.anno.gff > ${OUT}/ncRNA.gff
+	mv ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/transcript_assembly/ncRNA.orf.gff
+	${SOFT}/consolidate_transcripts.py ${OUT}/transcript_assembly/ncRNA.orf.gff ${OUT}/transcript_assembly/ncRNA.anno.gff > ${OUT}/transcript_assembly/ncRNA.gff
 	if [[ $? -ne 0 ]]; then error "Transcript consolidation failed. Exiting..."; fi
 fi
 
-mkdir ${OUT}/transcript_assembly
-mv ${OUT}/*gff ${OUT}/transcript_assembly
 cp ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/nc_rna.gff
 
 
@@ -209,7 +224,7 @@ mkdir ${OUT}/srna_curation
 mv ${OUT}/nc_rna.gff ${OUT}/srna_curation/raw_nc_transcripts.gff
 
 comm "dynamically thresholding transcripts that are too close to a contig's edge"
-${SOFT}/positional_thresholding.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.gff > ${OUT}/srna_curation/good_nc_transcripts.gff
+${SOFT}/positional_thresholding.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.gff ${OUT}/srna_curation/good_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to remove transcripts close to contig edges. Exiting..."; fi
 cp ${OUT}/srna_curation/good_nc_transcripts.gff ${OUT}/nc_transcripts.gff
 
