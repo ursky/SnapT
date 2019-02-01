@@ -16,14 +16,21 @@ def load_gff_coordinates(filename):
 		st = int(cut[3])
 		fi = int(cut[4])
 		strand = cut[6]
+		if strand=="1":
+			strand="+"
+		if strand=="0":
+			strand="-"
 		gene = cut[8].split(";")[0]
 	
 		if contig not in coordinates:
 			coordinates[contig]={}
 			coordinates[contig]["+"]=[]
 			coordinates[contig]["-"]=[]
-
-		coordinates[contig][strand].append((st,fi,gene))
+		if strand==".":
+			coordinates[contig]["+"].append((st,fi,gene))
+			coordinates[contig]["-"].append((st,fi,gene))
+		else:
+			coordinates[contig][strand].append((st,fi,gene))
 	return coordinates
 
 
@@ -48,14 +55,21 @@ def intersect(st, fi, strand_coordinates, dist, overlap):
 			# small peptide encoded in ncRNA
 			if coordinate[1]-coordinate[0]<100 and (fi-st)/(coordinate[1]-coordinate[0])>3:
 				# besides the peptide, the transcript doesnt intersect with anything on the strand
-				if st-strand_coordinates[i-1][1]>dist and strand_coordinates[i+1][0]-fi>dist:
+				if i>0:
+					if st-strand_coordinates[i-1][1]>dist:
+						diagnosis="intergenic"
+					else:
+						diagnosis="ambiguous"
+				
+				if i+1<len(strand_coordinates):
+					if strand_coordinates[i+1][0]-fi>dist:
+						diagnosis="intergenic"
+					else:
+						diagnosis="ambiguous"
+				if len(strand_coordinates)==1:
 					diagnosis="intergenic"
-					break
-				# the transcript has another conflict besides the small peptide
-				else:
-					diagnosis="ambiguous"
-					break
-			# complete span of gene
+				break
+			# likely the peptide or gene itself
 			else:
 				diagnosis="gene"
 				break
