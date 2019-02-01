@@ -1,3 +1,12 @@
+SnapT v=0.2 (February 2019)
+	stringtie assembly is now guided
+	prokka is run if the user does not provide an annotation
+	if there is a small peptide (<100nt) encoded in a much larger (3X) transcript, it can still be called a ncRNA
+	non-coding transcripts need to overlap at least 10nt with opposite strand gene to be called antisense
+	modified tip of contig thresholding to be more stringent
+	added -l option to allow t specify smallest contig size
+	snapt scripts are now dirrectly located in /bin/
+
 SnapT v=0.1 (January 2019)
 	Wrap sRNA discovery pipeline into usable wrapper
 	First user-friendly version of SnapT

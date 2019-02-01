@@ -27,26 +27,38 @@ def load_gff_coordinates(filename):
 	return coordinates
 
 
-def intersect(st, fi, strand_coordinates, dist):
+def intersect(st, fi, strand_coordinates, dist, overlap):
 	diagnosis="intergenic"
 	coordinate=(0,1,"NA")
 	for i,coordinate in enumerate(strand_coordinates):
 		# middle of gene
-		if st>=coordinate[0] and fi<=coordinate[1]:
+		if st-overlap>=coordinate[0] and fi+overlap<=coordinate[1]:
 			diagnosis="gene"
 			break
 		# start of gene
-		elif fi<=coordinate[1] and fi>=coordinate[0]:
+		elif fi+overlap<=coordinate[1] and fi-overlap>=coordinate[0]:
 			diagnosis="gene"
 			break
 		# end of gene
-		elif st<=coordinate[1] and st>=coordinate[0]:
+		elif st+overlap<=coordinate[1] and st-overlap>=coordinate[0]:
 			diagnosis="gene"
 			break
 		# complete span of gene
 		elif st<coordinate[0] and fi>coordinate[1]:
-			diagnosis="gene"
-			break
+			# small peptide encoded in ncRNA
+			if coordinate[1]-coordinate[0]<100 and (fi-st)/(coordinate[1]-coordinate[0])>3:
+				# besides the peptide, the transcript doesnt intersect with anything on the strand
+				if st-strand_coordinates[i-1][1]>dist and strand_coordinates[i+1][0]-fi>dist:
+					diagnosis="intergenic"
+					break
+				# the transcript has another conflict besides the small peptide
+				else:
+					diagnosis="ambiguous"
+					break
+			# complete span of gene
+			else:
+				diagnosis="gene"
+				break
 		# intergenic on start of contig
 		elif i==0 and fi+dist<coordinate[0]:
 			diagnosis="intergenic"
@@ -65,7 +77,7 @@ def intersect(st, fi, strand_coordinates, dist):
 
 
 
-def load_transcripts_gff(filename, orfs, dist):
+def load_transcripts_gff(filename, orfs, dist, overlap):
 	other_strand={"+":"-", "-":"+"}
 	intergenic=""
 	antisense=""
@@ -89,12 +101,12 @@ def load_transcripts_gff(filename, orfs, dist):
 
 		# check if this transcript is intergenic on the strand that its expressed on
 		strand_coordinates = orfs[contig][strand]
-		diagnosis,gene = intersect(st, fi, strand_coordinates, dist)
+		diagnosis,gene = intersect(st, fi, strand_coordinates, dist, overlap)
 
 		# if the transcript is intergenic, check if there is a gene on the other strand
 		if diagnosis=="intergenic":
 			strand_coordinates = orfs[contig][other_strand[strand]]
-			opposite_strand_diagnosis,opposite_gene = intersect(st, fi, strand_coordinates, 0)
+			opposite_strand_diagnosis,opposite_gene = intersect(st, fi, strand_coordinates, dist, overlap)
 			if opposite_strand_diagnosis=="gene":
 				diagnosis = "antisense"
 
@@ -111,8 +123,9 @@ def load_transcripts_gff(filename, orfs, dist):
 
 
 MIN_DISTANCE_TO_GENE=30
+MIN_OVERLAP_WITH_GENE=10
 ORFs = load_gff_coordinates(sys.argv[1])
-intergenic, antisense = load_transcripts_gff(sys.argv[2], ORFs, MIN_DISTANCE_TO_GENE)
+intergenic, antisense = load_transcripts_gff(sys.argv[2], ORFs, MIN_DISTANCE_TO_GENE, MIN_OVERLAP_WITH_GENE)
 
 
 
