@@ -40,6 +40,8 @@ def load_transcripts(filename, lengths):
 		cut=line.strip().split("\t")
 		if len(cut)!=9:
 			continue
+		if cut[2]=="antisense transcript":
+			continue
 		contig=cut[0]
 		st = int(cut[3])
 		fi = int(cut[4])
@@ -131,6 +133,9 @@ def optimize_cut_off(contig_lengths, positions):
 	print "Looks like using a minimum distance of "+str(cut_off+10)+" is safe!"
 	return cut_off+10
 		
+
+#MAIN
+
 if len(sys.argv)==5:
 	genome_file=sys.argv[1]
 	annotation_file=sys.argv[2]
@@ -146,7 +151,6 @@ else:
 	print "wrong number of arguments! Usage: python2.7 script.py genome.fa genome.gff output.gff"
 	print sys.argv
 	quit()
-
 
 
 positions = load_transcripts(annotation_file, contig_lengths)

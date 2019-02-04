@@ -1,3 +1,5 @@
+### Note: SnapT is under early development. Use at your own risk.
+
 **Current SnapT version = 0.1**. To update, run `conda install -c ursky snapt=0.1`
 
 # SnapT - **S**mall **n**cRNA **a**nnotation **p**ipeline for **t**ranscriptomic data

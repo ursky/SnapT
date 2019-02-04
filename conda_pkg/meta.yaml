@@ -1,6 +1,6 @@
 package:
   name: snapt
-  version: "0.1.1"
+  version: "0.2"
 
 source:
   git_url: https://github.com/ursky/SnapT.git
@@ -11,10 +11,13 @@ requirements:
   run:
     - stringtie>=1.3.4
     - openssl=1.0*
-    - samtools
+    - samtools>=1.6
     - hisat2
     - prokka
     - prodigal
+    - blast
+    - bedtools
+    - diamond
 
 about:
   home: https://github.com/ursky/SnapT
