@@ -301,19 +301,19 @@ else
 	comm "running DIAMOND blastx on ${OUT}/blastx_search/intergenic.fa against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/intergenic.fa --out ${OUT}/blastx_search/intergenic.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 -strand both
+	 --threads $THREADS --query-cover 30 --strand both
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
 	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_plus.fa --out ${OUT}/blastx_search/antisense_plus.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 -strand plus
+	 --threads $THREADS --query-cover 30 --strand plus
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
 	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_minus.fa --out ${OUT}/blastx_search/antisense_minus.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 -strand minus
+	 --threads $THREADS --query-cover 30 --strand minus
 
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
