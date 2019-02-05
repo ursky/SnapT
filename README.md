@@ -35,7 +35,12 @@
  
  
 ## USAGE
- Usage instructions and example run with SnapT. To be added.
+ Example run of Snapt:
+ ```
+ snapt -1 READS/ALL_1.fastq -2 READS/ALL_2.fastq -g metagenomic_assembly.fasta -a metagenomic_assembly.gff -l 3000 -o SNAPT_OUT -t 48 -d ../DATABASES/NCBI_nr/nr.dmnd
+ ```
+ 
+ Help message
 ```bash
 Usage: SnapT [options] -1 reads_1.fastq -2 reads_2.fastq -g genome.fa -o output_dir
 
@@ -43,15 +48,17 @@ SnapT options:
 	-1 STR		forward transcriptome (or metatranscriptome) reads
 	-2 SRT		reverse transcriptome (or metatranscriptome) reads (optional)
 	-g STR		genome (or metagenome) fasta file
-	-a STR		genome (or metagenome) annotation gtf file (optional)
+	-a STR		genome (or metagenome) annotation gtf/gff file (optional, but recommended)
+	-l INT		minimum contig length (default=1000) for ncRNA annotation
 	-o STR          output directory
+	-t INT		number of threads (default=1)
+	-d STR		NCBI_nr protein database DIAMOND index (see installation instructions for details)
 
 Aligment options:
-	-t INT          number of threads (default=1)
-	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR). Only for strand-specific RNAseq
-	-I INT		min insert size (def: 0)
-	-X INT		max insert size (def: 500)
-	-m INT		gap distance to close transcripts (def: 50)
+	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR)
+	-I INT		min insert size (default=0)
+	-X INT		max insert size (default=500)
+	-m INT		gap distance to close transcripts (default=50)
 
 	--version | -v	show current SnapT version
 ```
