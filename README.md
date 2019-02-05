@@ -7,7 +7,7 @@
  SnapT is a small non-coding RNA discovery pipeline. SnapT leverages transcriptomic or metatranscriptimic data to find, annotate, and quantify intergenic and anti-sense sRNA transcripts. 
 
 ## SnapT pipeline workflow
- To make in draw.io
+ ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/rc1GJz2.png)
 
 
 ## INSTALLATION
