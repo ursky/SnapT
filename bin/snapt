@@ -139,20 +139,20 @@ fi
 ########################################################################################################
 announcement "ALIGN RNA READS TO GENOME WITH HISAT2"
 
-if [[ -s ${OUT}/hisat2/hisat2_index.1.ht2 ]]; then
+if [[ -s ${OUT}/hisat2_alignment/hisat2_index.1.ht2 ]]; then
 	comm "Looks like the Hisat2 index already exists in the output directory. Skipping..."
 else
 	comm "Building Hisat2 index from reference genome"
-	mkdir ${OUT}/hisat2
-	cp $GENOME ${OUT}/hisat2/genome.fa
-	hisat2-build ${OUT}/hisat2/genome.fa ${OUT}/hisat2/hisat2_index \
+	mkdir ${OUT}/hisat2_alignment
+	cp $GENOME ${OUT}/hisat2_alignment/genome.fa
+	hisat2-build ${OUT}/hisat2_alignment/genome.fa ${OUT}/hisat2_alignment/hisat2_index \
 	 -p $THREADS --quiet
 	if [[ $? -ne 0 ]]; then error "Hisat2 index could not be build. Exiting..."; fi
 fi
 
 
 
-if [[ -s ${OUT}/hisat2/alignment.bam ]]; then
+if [[ -s ${OUT}/hisat2_alignment/alignment.bam ]]; then
 	comm "Looks like the alignment files aready exist in the output directory. Skipping..."
 else
 	comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
@@ -160,23 +160,23 @@ else
 		hisat2 -p 20 --verbose --no-spliced-alignment\
 		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
-		 -x ${OUT}/hisat2/hisat2_index\
-		 -U $READS1 -S ${OUT}/hisat2/alignment.sam
+		 -x ${OUT}/hisat2_alignment/hisat2_index\
+		 -U $READS1 -S ${OUT}/hisat2_alignment/alignment.sam
 	else
 		hisat2 -p 20 --verbose --no-spliced-alignment\
 		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
-		 -x ${OUT}/hisat2/hisat2_index\
-		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2/alignment.sam
+		 -x ${OUT}/hisat2_alignment/hisat2_index\
+		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2_alignment/alignment.sam
 	fi
 	if [[ $? -ne 0 ]]; then error "Hisat2 alignment failed. Exiting..."; fi
 
 	comm "Sorting hisat2 SAM alignment file and converting it to BAM format"
-	samtools sort ${OUT}/hisat2/alignment.sam -O BAM -o ${OUT}/hisat2/alignment.bam -@ $THREADS
+	samtools sort ${OUT}/hisat2_alignment/alignment.sam -O BAM -o ${OUT}/hisat2_alignment/alignment.bam -@ $THREADS
 	if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 
 	comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam"
-	samtools index ${OUT}/hisat2/alignment.bam
+	samtools index ${OUT}/hisat2_alignment/alignment.bam
 	if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
 fi
 
@@ -207,7 +207,7 @@ if [[ -s ${OUT}/transcript_assembly/raw_transcripts.gff ]]; then
 else
 	comm "Building reference-based transcripts and transcriptome expression file"
 	mkdir ${OUT}/transcript_assembly
-	stringtie ${OUT}/hisat2/alignment.bam \
+	stringtie ${OUT}/hisat2_alignment/alignment.bam \
 		-o ${OUT}/transcript_assembly/raw_transcripts.gff \
 		-p $THREADS -m $GAP_VALUE -G $ANNOTATION
 	if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
@@ -261,7 +261,8 @@ snapt_positional_curation.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to remove transcripts close to contig edges. Exiting..."; fi
 
 comm "curating ncRNA predictions by size (minimum 50bp, maximum 500bp)"
-snapt_size_select.py ${OUT}/srna_curation/good_nc_transcripts.gff 50 500 > ${OUT}/small_nc_transcripts.gff 
+snapt_size_select.py ${OUT}/srna_curation/good_nc_transcripts.gff 50 500 > ${OUT}/srna_curation/small_nc_transcripts.gff 
+cp ${OUT}/srna_curation/small_nc_transcripts.gff ${OUT}/small_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to size select the transcripts. Exiting..."; fi
 comm "Out of $(cat ${OUT}/srna_curation/good_nc_transcripts.gff | wc -l) ncRNAs, there are $(cat ${OUT}/small_nc_transcripts.gff | wc -l) small ncRNAs, of which $(cat ${OUT}/small_nc_transcripts.gff | grep "intergenic" | wc -l) are intergenic and $(cat ${OUT}/small_nc_transcripts.gff | grep "antisense" | wc -l) are antisense."
 
@@ -276,36 +277,73 @@ fi
 
 announcement "CROSS REFERING TRANSCRIPTS WITH BLASTX"
 
-if [[ -s ${OUT}/nr_hits.blast ]]; then
-	comm "Looks like DIAMOND Blastx was already run - ${OUT}/nr_hits.blast exists. Skipping..."
+if [[ -s ${OUT}/blastx_search/signifficant_hits.list ]]; then
+	comm "Looks like DIAMOND Blastx was already run - ${OUT}/blastx_search/signifficant_hits.list exists. Skipping..."
 else
-	comm "pulling out fasta file from $GENOME assembly and ${OUT}/small_nc_transcripts.gff transcripts"
-	bedtools getfasta -fi $GENOME -bed ${OUT}/small_nc_transcripts.gff > ${OUT}/small_nc_transcripts.fa
-	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from GFF. Exiting..."; fi
+	mkdir ${OUT}/blastx_search
+	comm "splitting intergenic and antisense transcripts for different alignment options"
+	grep "intergenic transcript" ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/intergenic.gff
+	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff | awk '($8=="+") {print}' > ${OUT}/blastx_search/antisense_plus.gff
+	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff | awk '($8=="-") {print}' > ${OUT}/blastx_search/antisense_minus.gff
+
+	comm "pulling out fasta files of transcripts from $GENOME assembly"
+	for FILE in ${OUT}/blastx_search/*.gff; do
+		comm "pulling fasta sequences from $FILE GFF"
+		bedtools getfasta -fi $GENOME -bed $FILE > ${FILE%.*}.fa
+		if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from $FILE GFF. Exiting..."; fi
+	done
 
 	# download and index the nr database:
 	# wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
 	# gunzip nr.gz
 	# mv nr nr.faa
 	# diamond makedb --in nr.faa -d nr
-	comm "running DIAMOND blastx of ${OUT}/small_nc_transcripts.fa against the $DATABASE database"
-	diamond blastx --threads $THREADS --db $DATABASE --out ${OUT}/nr_hits.blast\
-	 --outfmt 6 qseqid sseqid bitscore pident nident qlen slen length mismatch qstart qend sstart send\
-	 --query-cover 30 --evalue 0.0001 --query ${OUT}/small_nc_transcripts.fa
-	if [[ $? -ne 0 ]]; then error "DIAMOND Blastx search against the database. Exiting..."; fi
+	comm "running DIAMOND blastx on ${OUT}/blastx_search/intergenic.fa against the $DATABASE database"
+	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/intergenic.fa --out ${OUT}/blastx_search/intergenic.blast\
+	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
+	 --threads $THREADS --query-cover 30 -strand both
+	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
+
+	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
+	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_plus.fa --out ${OUT}/blastx_search/antisense_plus.blast\
+	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
+	 --threads $THREADS --query-cover 30 -strand plus
+	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
+
+	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
+	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_minus.fa --out ${OUT}/blastx_search/antisense_minus.blast\
+	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
+	 --threads $THREADS --query-cover 30 -strand minus
+
+	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
+
+
+	for FILE in ${OUT}/blastx_search/*.blast; do
+		comm "filtering blastx hits for bit score > 50, evalue < 0.0001, and percent identity > 30"
+		# Note that query cover >30% is already done at the alignment step
+		cat $BLAST \
+		 | awk '{ if ($3>50) print $0 }'\
+		 | awk '{ if ($4<0.0001) print $0 }'\
+		 | awk '{ if ($5>30) print $0 }'\
+		 | cut -f1 | uniq > ${BLAST%.*}.list
+	done
+
+	cat ${OUT}/blastx_search/*list | sort | uniq > ${OUT}/blastx_search/signifficant_hits.list
+	comm "Out of $(cat ${OUT}/small_nc_transcripts.gff | wc -l) small ncRNA sequences, $(cat ${OUT}/blastx_search/signifficant_hits.list | wc -l) had signifficant hits against the protein database"
 fi
 
-comm "filtering blastx hits for bit score > 50 and percent identity > 30"
-# Note that query cover >30% and eval < 0.0001 is already done at the alignment step
-cat ${OUT}/nr_hits.blast | awk '{ if ($3>50) print $0 }' | awk '{ if ($4>30) print $0 }' | cut -f1 | uniq | ${OUT}/nr_hits.list
-comm "Out of $(cat ${OUT}/small_nc_transcripts.gff | wc -l) small ncRNA sequences, $(cat ${OUT}/nr_hits.list | wc -l) had signifficant hits against the protein database"
-
-
 comm "pulling out small ncRNA preditions without any blastx hits to the NR database"
+snapt_filter_by_blastx.py ${OUT}/blastx_search/nr_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/final_small_nc_transcripts.gff
+if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without Blastx hits. Exiting..."; fi
+
+
+comm "cleaning up..."
+mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
+cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 
 
 ########################################################################################################
 ########################     sRNA DISCOVERY PIPELINE SUCCESSFULLY FINISHED!!!   ########################
 ########################################################################################################
-announcement "sRNA DISCOVERY PIPELINE FINISHED SUCCESSFULLY!"
+announcement "SMALL NC_RNA DISCOVERY PIPELINE FINISHED SUCCESSFULLY! ANNOTATED $(cat ${OUT}/small_ncRNAs.gff | grep intergenic | wc -l) INTERGENIC AND $(cat ${OUT}/small_ncRNAs.gff | grep antisense | wc -l) ANTISENSE TRANSCRIPTS."
 
