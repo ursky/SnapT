@@ -231,18 +231,18 @@ ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
 
 comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
 snapt_intersect_gff.py $ORFS ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.gff
-if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
+if [[ ! -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
 comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.gff | wc -l) putative non-coding transcripts using the Prodigal annotation."
 
 comm "Intersecting the transcripts with the provided annotation in $ANNOTATION"
 snapt_intersect_gff.py $ANNOTATION ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.anno.gff
-if [[ $? -ne 0 ]]; then error "Could not intersect the transcripts with the provided annotation. Exiting..."; fi
+if [[ ! -s ${OUT}/transcript_assembly/ncRNA.anno.gff ]]; then error "Could not intersect the transcripts with the provided annotation. Exiting..."; fi
 comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.anno.gff | wc -l) putative non-coding transcripts using the $ANNOTATION annotation."
 
 comm "Consolidating intergenic and antisense transcripts predicted from ORFs and $ANNOTATION"
 mv ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/transcript_assembly/ncRNA.orf.gff
 snapt_consolidate_transcripts.py ${OUT}/transcript_assembly/ncRNA.orf.gff ${OUT}/transcript_assembly/ncRNA.anno.gff > ${OUT}/transcript_assembly/ncRNA.gff
-if [[ $? -ne 0 ]]; then error "Transcript consolidation failed. Exiting..."; fi
+if [[ ! -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then error "Transcript consolidation failed. Exiting..."; fi
 comm "Filtered down to $(cat ${OUT}/transcript_assembly/ncRNA.gff | wc -l) putative non-coding transcripts"
 
 cp ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/nc_rna.gff
@@ -333,6 +333,8 @@ mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
 cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
 grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
+snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
+
 bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
 bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
 

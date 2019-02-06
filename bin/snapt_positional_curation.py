@@ -116,6 +116,8 @@ def compute_statistics(contig_lengths, positions, bin_size):
 def optimize_cut_off(contig_lengths, positions):
 	cut_off=20
 	while True:
+		if cut_off>300:
+			break
 		print "Computing overrepresentation at cut off: "+ str(cut_off)
 		representation = compute_statistics(contig_lengths, positions, cut_off)
 		print representation[0], representation[1], representation[2], representation[3], representation[4], representation[5]
@@ -128,8 +130,6 @@ def optimize_cut_off(contig_lengths, positions):
 		if ratio2<1.3 and ratio2>0.85 and ratio3<1.3 and ratio3>0.77:
 			break
 		cut_off+=10
-		if cut_off>300:
-			break
 	print "Looks like using a minimum distance of "+str(cut_off+10)+" is safe!"
 	return cut_off+10
 		
