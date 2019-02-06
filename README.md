@@ -30,6 +30,14 @@
  conda install -c ursky snapt
  ```
  
+ Finally, for more robust ncRNA enrichment, download the NCBI NR protain database, and index it with DIAMOND:
+ ```
+wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
+gunzip nr.gz
+mv nr nr.faa
+diamond makedb --in nr.faa -d nr
+```
+ 
 #### Manual installation:
  You may want to manually install SnapT if you want better control over your environment, if you are installing on non-conventional system, or you just really dislike conda. In any case, you will need to manually install the [relevant prerequisite programs](https://github.com/ursky/SnapT/blob/master/conda_pkg/meta.yaml). When you are ready, download or clone this ripository and add the `SnapT/bin/` directory to to the `$PATH` or copy the `SnapT/bin/` contents into a directory that is under `PATH`. Thats it! 
  
