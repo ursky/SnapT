@@ -11,7 +11,7 @@
  6. The transcripts must not have signifficant homology with any protein in the NCBI_NR database (query cover>30%, Bitscore>50, evalue<0.0001, and identity>30%).
 
 ## SnapT pipeline workflow
- ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/rc1GJz2.png)
+ ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/WicIJDP.png)
 
 
 ## INSTALLATION
