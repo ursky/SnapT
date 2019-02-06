@@ -4,7 +4,7 @@ import sys
 # load transcripts with blastx hits
 skip={}
 for line in open(sys.argv[1]):
-	skip[line.strip()]=None
+	skip[line.strip().split("(")[0]]=None
 
 inter_skipped=0
 inter_passed=0

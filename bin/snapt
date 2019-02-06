@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #SBATCH
 #SBATCH --job-name=SnapT
-#SBATCH --partition=lrgmem
+#SBATCH --partition=shared
 #SBATCH --time=72:0:0
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=48
+#SBATCH --cpus-per-task=24
 #SBATCH --mem=100G
 
 
@@ -32,7 +32,7 @@ help_message () {
 	echo "	-l INT		minimum contig length (default=1000) for ncRNA annotation"
 	echo "	-o STR          output directory"
 	echo "	-t INT		number of threads (default=1)"
-	echo "	-d STR		NCBI_nr protein database DIAMOND index (see installation instructions for details)"
+	echo "	-d STR		nr protein database DIAMOND .dmnd index (see installation instructions for details)"
 	echo ""
 	echo "Aligment options:"
 	echo "	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR)"
@@ -283,16 +283,15 @@ else
 	mkdir ${OUT}/blastx_search
 	comm "splitting intergenic and antisense transcripts for different alignment options"
 	grep "intergenic transcript" ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/intergenic.gff
-	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff | awk '($8=="+") {print}' > ${OUT}/blastx_search/antisense_plus.gff
-	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff | awk '($8=="-") {print}' > ${OUT}/blastx_search/antisense_minus.gff
+	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff  > ${OUT}/blastx_search/antisense.gff
 
 	comm "pulling out fasta files of transcripts from $GENOME assembly"
-	for FILE in ${OUT}/blastx_search/*.gff; do
-		comm "pulling fasta sequences from $FILE GFF"
-		bedtools getfasta -fi $GENOME -bed $FILE > ${FILE%.*}.fa
-		if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from $FILE GFF. Exiting..."; fi
-	done
-
+	bedtools getfasta -s -fi $GENOME -bed ${OUT}/blastx_search/intergenic.gff > ${OUT}/blastx_search/intergenic.fa
+	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from ${OUT}/blastx_search/intergenic.gff GFF. Exiting..."; fi
+	bedtools getfasta -s -fi $GENOME -bed ${OUT}/blastx_search/antisense.gff > ${OUT}/blastx_search/antisense.fa
+	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from ${OUT}/blastx_search/antisense.gff GFF. Exiting..."; fi
+	
+	
 	# download and index the nr database:
 	# wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
 	# gunzip nr.gz
@@ -301,24 +300,17 @@ else
 	comm "running DIAMOND blastx on ${OUT}/blastx_search/intergenic.fa against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/intergenic.fa --out ${OUT}/blastx_search/intergenic.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 --strand both
+	 --threads $THREADS --query-cover 30
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
-	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
-	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_plus.fa --out ${OUT}/blastx_search/antisense_plus.blast\
+	comm "running DIAMOND blastx on ${OUT}/blastx_search/antisense.fa against the $DATABASE database"
+	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense.fa --out ${OUT}/blastx_search/antisense.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 --strand plus
-	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
-
-	comm "running DIAMOND blastx on $FASTA against the $DATABASE database"
-	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense_minus.fa --out ${OUT}/blastx_search/antisense_minus.blast\
-	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 --strand minus
-
+	 --threads $THREADS --query-cover 30 --forwardonly --strand plus
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
 
-	for FILE in ${OUT}/blastx_search/*.blast; do
+	for BLAST in ${OUT}/blastx_search/*.blast; do
 		comm "filtering blastx hits for bit score > 50, evalue < 0.0001, and percent identity > 30"
 		# Note that query cover >30% is already done at the alignment step
 		cat $BLAST \
@@ -333,13 +325,16 @@ else
 fi
 
 comm "pulling out small ncRNA preditions without any blastx hits to the NR database"
-snapt_filter_by_blastx.py ${OUT}/blastx_search/nr_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/final_small_nc_transcripts.gff
+snapt_filter_by_blastx.py ${OUT}/blastx_search/signifficant_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/final_small_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without Blastx hits. Exiting..."; fi
 
-
-comm "cleaning up..."
+comm "cleaning up and pulling out fasta sequences of small ncRNAs"
 mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
 cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
+grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
+grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
+bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
+bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
 
 
 ########################################################################################################
