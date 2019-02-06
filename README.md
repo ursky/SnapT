@@ -1,8 +1,6 @@
-### Note: SnapT is under early development. Use at your own risk.
-
 **Current SnapT version = 0.2**. To update, run `conda install -c ursky snapt=0.2`
 
-# SnapT - **S**mall **n**cRNA **a**nnotation **p**ipeline for **t**ranscriptomic data
+# SnapT - Small NcRNA Annotation Pipeline for (meta)Transcriptomic data
 
  SnapT is a small non-coding RNA discovery pipeline. SnapT leverages transcriptomic or metatranscriptimic data to find, annotate, and quantify intergenic and anti-sense sRNA transcripts. To do this, SnapT aligns reads from a stranded RNAseq experiment to the reference (meta)genome, and then assembles the reads into transcripts. The transcripts are then intersected with the genome annotation as well as open reading frames to select for only transcripts that fall on non-coding regions, and further filtered to produce a final set of predicted small ncRNAs: 
  1. Intergenic transcripts must be at least 30nt away from any gene or ORF on both strands 
