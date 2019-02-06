@@ -30,7 +30,7 @@
  conda install -c ursky snapt
  ```
  
- Finally, for more robust ncRNA enrichment, download the NCBI NR protain database, and index it with DIAMOND:
+ Finally, download and index the NCBI NR protain database (you will need to input the nr.dmnd index into snapt):
  ```
 wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
 gunzip nr.gz
