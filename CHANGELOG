@@ -1,5 +1,10 @@
+SnapT v=0.3 (TBD)
+	added expression curve analysis to remove lowly expressed transcripts
+	increased minimum basepair coverage during transcript assembly from 2.5 to 10
+
 SnapT v=0.2 (February 2019)
 	stringtie assembly is now guided
+	added explicit genome indexing handling
 	prokka is run if the user does not provide an annotation
 	if there is a small peptide (<100nt) encoded in a much larger (3X) transcript, it can still be called a ncRNA
 	non-coding transcripts need to overlap at least 10nt with opposite strand gene to be called antisense

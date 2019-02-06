@@ -158,13 +158,13 @@ else
 	comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
 	if [[ $READS2 == none ]];then
 		hisat2 -p 20 --verbose --no-spliced-alignment\
-		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --quiet\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
 		 -x ${OUT}/hisat2_alignment/hisat2_index\
 		 -U $READS1 -S ${OUT}/hisat2_alignment/alignment.sam
 	else
 		hisat2 -p 20 --verbose --no-spliced-alignment\
-		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS \
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --quiet\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
 		 -x ${OUT}/hisat2_alignment/hisat2_index\
 		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2_alignment/alignment.sam
@@ -175,7 +175,9 @@ else
 	samtools sort ${OUT}/hisat2_alignment/alignment.sam -O BAM -o ${OUT}/hisat2_alignment/alignment.bam -@ $THREADS
 	if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 
-	comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam"
+	comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam and faidx index of $GENOME for IGV inspection"
+	samtools faidx ${OUT}/hisat2_alignment/genome.fa
+	if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
 	samtools index ${OUT}/hisat2_alignment/alignment.bam
 	if [[ $? -ne 0 ]]; then error "Samtools indexing failed. Exiting..."; fi
 fi
@@ -209,7 +211,7 @@ else
 	mkdir ${OUT}/transcript_assembly
 	stringtie ${OUT}/hisat2_alignment/alignment.bam \
 		-o ${OUT}/transcript_assembly/raw_transcripts.gff \
-		-p $THREADS -m $GAP_VALUE -G $ANNOTATION
+		-p $THREADS -m $GAP_VALUE -G $ANNOTATION -c 10
 	if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
 fi
 
@@ -286,9 +288,9 @@ else
 	grep "antisense transcript" ${OUT}/small_nc_transcripts.gff  > ${OUT}/blastx_search/antisense.gff
 
 	comm "pulling out fasta files of transcripts from $GENOME assembly"
-	bedtools getfasta -s -fi $GENOME -bed ${OUT}/blastx_search/intergenic.gff > ${OUT}/blastx_search/intergenic.fa
+	bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/blastx_search/intergenic.gff > ${OUT}/blastx_search/intergenic.fa
 	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from ${OUT}/blastx_search/intergenic.gff GFF. Exiting..."; fi
-	bedtools getfasta -s -fi $GENOME -bed ${OUT}/blastx_search/antisense.gff > ${OUT}/blastx_search/antisense.fa
+	bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/blastx_search/antisense.gff > ${OUT}/blastx_search/antisense.fa
 	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from ${OUT}/blastx_search/antisense.gff GFF. Exiting..."; fi
 	
 	
@@ -300,13 +302,13 @@ else
 	comm "running DIAMOND blastx on ${OUT}/blastx_search/intergenic.fa against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/intergenic.fa --out ${OUT}/blastx_search/intergenic.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30
+	 --threads $THREADS --query-cover 30 --quiet
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
 	comm "running DIAMOND blastx on ${OUT}/blastx_search/antisense.fa against the $DATABASE database"
 	diamond blastx --db $DATABASE --query ${OUT}/blastx_search/antisense.fa --out ${OUT}/blastx_search/antisense.blast\
 	 --outfmt 6 qseqid sseqid bitscore evalue pident nident qlen slen length mismatch qstart qend sstart send\
-	 --threads $THREADS --query-cover 30 --forwardonly --strand plus
+	 --threads $THREADS --query-cover 30 --quiet --forwardonly --strand plus
 	if [[ $? -ne 0 ]]; then error "Failed DIAMOND Blastx search against the database. Exiting..."; fi
 
 
@@ -335,8 +337,8 @@ grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncR
 grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
 snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
 
-bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
-bedtools getfasta -s -fi $GENOME -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
+bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
+bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
 
 
 ########################################################################################################
