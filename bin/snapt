@@ -39,7 +39,9 @@ help_message () {
 	echo "	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR)"
 	echo "	-I INT		min insert size (default=$MIN_INSERT_VALUE)"
 	echo "	-X INT		max insert size (default=$MAX_INSERT_VALUE)"
-	echo "	-m INT		minimum sRNA size during assembly (default=$GAP_VALUE)"
+	echo "	-m INT		minimum sRNA size during assembly (default=$MIN_LEN)"
+	echo "	-P INT		minimum reads per bp coverage to consider for transcript assembly (default=10)"
+	echo "	-T INT		minimum TPM expression of transcript to keep (default=1)"
 	echo ""
 	echo "	--version | -v	show current SnapT version"
 	echo "";}
@@ -65,9 +67,11 @@ BIN_PATH=${SNAPT_PATH%/*}
 STRAND_MAP_VALUE=FR
 MIN_INSERT_VALUE=0
 MAX_INSERT_VALUE=500
-GAP_VALUE=50
+MIN_LEN=50
 THREADS=1
 LENGTH=1000
+MIN_COV=10
+MIN_TPM=1
 
 OUT=none
 READS1=none
@@ -78,7 +82,7 @@ DATABASE=none
 
 
 # load in params
-OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:d: --long help,version -- "$@"`
+OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:d:T:P: --long help,version -- "$@"`
 # make sure the params are entered correctly
 if [ $? -ne 0 ]; then help_message; exit 1; fi
 
@@ -96,7 +100,9 @@ while true; do
 		-r) STRAND_MAP_VALUE=$2; shift 2;;
 		-I) MIN_INSERT_VALUE=$2; shift 2;;
 		-X) MAX_INSERT_VALUE=$2; shift 2;;
-		-m) GAP_VALUE=$2; shift 2;;
+		-m) MIN_LEN=$2; shift 2;;
+		-T) MIN_TPM=$2; shift 2;;
+		-P) MIN_COV=$2; shift 2;;
                 -h | --help) help_message; exit 0; shift 1;;
 		-v | --version) echo SnapT v=${VERSION}; exit 0; shift 1;;
 		--skip-refinement) refine=false; shift 1;;
@@ -175,6 +181,7 @@ else
 	comm "Sorting hisat2 SAM alignment file and converting it to BAM format"
 	samtools sort ${OUT}/hisat2_alignment/alignment.sam -O BAM -o ${OUT}/hisat2_alignment/alignment.bam -@ $THREADS
 	if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
+	rm ${OUT}/hisat2_alignment/alignment.sam
 
 	comm "Building IGV index from hisat2 i${OUT}/hisat2/alignment.bam and faidx index of $GENOME for IGV inspection"
 	samtools faidx ${OUT}/hisat2_alignment/genome.fa
@@ -212,7 +219,7 @@ else
 	mkdir ${OUT}/transcript_assembly
 	stringtie ${OUT}/hisat2_alignment/alignment.bam \
 		-o ${OUT}/transcript_assembly/raw_transcripts.gff \
-		-p $THREADS -m $GAP_VALUE -G $ANNOTATION -c 10
+		-p $THREADS -m $MIN_LEN -G $ANNOTATION -c $MIN_COV
 	if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
 fi
 
@@ -230,12 +237,13 @@ else
 fi
 ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
 
-if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
+#if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
+if false; then
 	comm "Looks like intersecting the transcripts with the annotation and ORFs was already done. Skipping..."
 else
 	comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
-	snapt_intersect_gff.py $ORFS ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.gff
-	if [[ ! -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
+	snapt_intersect_gff.py $ORFS ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.orf.gff
+	if [[ ! -s ${OUT}/transcript_assembly/ncRNA.orf.gff ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
 	comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.gff | wc -l) putative non-coding transcripts using the Prodigal annotation."
 
 	comm "Intersecting the transcripts with the provided annotation in $ANNOTATION"
@@ -244,7 +252,6 @@ else
 	comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.anno.gff | wc -l) putative non-coding transcripts using the $ANNOTATION annotation."
 
 	comm "Consolidating intergenic and antisense transcripts predicted from ORFs and $ANNOTATION"
-	mv ${OUT}/transcript_assembly/ncRNA.gff ${OUT}/transcript_assembly/ncRNA.orf.gff
 	snapt_consolidate_transcripts.py ${OUT}/transcript_assembly/ncRNA.orf.gff ${OUT}/transcript_assembly/ncRNA.anno.gff > ${OUT}/transcript_assembly/ncRNA.gff
 	if [[ ! -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then error "Transcript consolidation failed. Exiting..."; fi
 fi
@@ -342,17 +349,23 @@ comm "cleaning up"
 mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
 cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 
-comm "pulling out fasta sequences of small ncRNAs"
+comm "plotting small ncRNA TMP values for minimum expression cut-off evaluation"
 grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
 grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
+snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
+
+warning "To reduce false positives, all ncRNAs that are below $MIN_TPM TPM expression will be removed. Please inspect the ${OUT}/expression_curve.png expression curve to confirm that this is a reasonable cut-off. If you would like to change this cut-off, re-run the SnapT with a different '-T' parameter. Note that SnapT will not have to re-do the previous steps if the output directory is kept the same."
+
+comm "Deleting $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1<tpm' | wc -l) transcripts that are below the $MIN_TPM tpm threshold. Keeping $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1>tpm' | wc -l) sRNAs!"
+
+comm "pulling out fasta sequences of small ncRNAs"
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
 
-comm "plotting small ncRNA TMP values for minimum expression cut-off evaluation"
-snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
 
 ########################################################################################################
 ########################     sRNA DISCOVERY PIPELINE SUCCESSFULLY FINISHED!!!   ########################
 ########################################################################################################
 announcement "SMALL NC_RNA DISCOVERY PIPELINE FINISHED SUCCESSFULLY! ANNOTATED $(cat ${OUT}/small_ncRNAs.gff | grep intergenic | wc -l) INTERGENIC AND $(cat ${OUT}/small_ncRNAs.gff | grep antisense | wc -l) ANTISENSE TRANSCRIPTS."
+
 

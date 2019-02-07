@@ -8,7 +8,7 @@ max_length=int(sys.argv[3])
 for line in open(filename):
 	if line[0]=="#":
 		print line.strip()
-		contignue
+		continue
 	cut=line.strip().split("\t")
 	if len(cut)!=9:
 		continue
