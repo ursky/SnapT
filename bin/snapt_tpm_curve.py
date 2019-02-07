@@ -1,5 +1,8 @@
 #!/usr/bin/env python
+print "loading modules..."
 import sys
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import operator
 
@@ -28,8 +31,8 @@ def load_tpms(filename):
 
 
 #MAIN
-font = {'family': 'arial', 'weight': 'normal', 'size': 12}
-plt.rc('font', **font)
+#font = {'family': 'arial', 'weight': 'normal', 'size': 12}
+#plt.rc('font', **font)
 fig = plt.figure(figsize=(10,7))
 ax = fig.add_subplot(111)
 
@@ -41,6 +44,7 @@ for filename in sys.argv[1:-1]:
 	tpm_maxs.append(TPMs[0])
 	ax.scatter(counts, TPMs, s=10, alpha=1, label=filename.split("/")[-1].split(".")[0])
 
+print "plotting..."
 if len(sys.argv)>3:
 	# make legend
 	handles, labels = ax.get_legend_handles_labels()

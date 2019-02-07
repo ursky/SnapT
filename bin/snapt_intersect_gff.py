@@ -115,7 +115,7 @@ def load_transcripts_gff(filename, orfs, dist, overlap):
 
 		# check if this transcript is intergenic on the strand that its expressed on
 		strand_coordinates = orfs[contig][strand]
-		diagnosis,gene = intersect(st, fi, strand_coordinates, dist, overlap)
+		diagnosis,gene = intersect(st, fi, strand_coordinates, dist, 0)
 
 		# if the transcript is intergenic, check if there is a gene on the other strand
 		if diagnosis=="intergenic":
