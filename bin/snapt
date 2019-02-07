@@ -356,7 +356,7 @@ snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${O
 
 warning "To reduce false positives, all ncRNAs that are below $MIN_TPM TPM expression will be removed. Please inspect the ${OUT}/expression_curve.png expression curve to confirm that this is a reasonable cut-off. If you would like to change this cut-off, re-run the SnapT with a different '-T' parameter. Note that SnapT will not have to re-do the previous steps if the output directory is kept the same."
 
-comm "Deleting $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1<tpm' | wc -l) transcripts that are below the $MIN_TPM tpm threshold. Keeping $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1>tpm' | wc -l) sRNAs!"
+warning "Potentially delete $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1<tpm' | wc -l) transcripts that are below the $MIN_TPM tpm threshold. Keeping $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1>tpm' | wc -l) sRNAs!"
 
 comm "pulling out fasta sequences of small ncRNAs"
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
