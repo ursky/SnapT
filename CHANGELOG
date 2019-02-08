@@ -6,6 +6,7 @@ SnapT v=0.3 (TBD)
 	eliminated spliced alignment with hisat2
 	major bug fix with faulty intercept with annotation
 	added sorting of annotation as failsafe
+	added test to see if ncRNAs have a ORF longer than 1/3 their length
 
 SnapT v=0.2 (February 2019)
 	stringtie assembly is now guided

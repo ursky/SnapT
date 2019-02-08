@@ -280,8 +280,19 @@ else
 	mkdir ${OUT}/srna_curation
 	mv ${OUT}/nc_rna.gff ${OUT}/srna_curation/raw_nc_transcripts.gff
 
+	comm "re-running Prodigal on isolated transcripts to check for coding regions"
+	getfasta -s -fi $GENOME -bed ${OUT}/srna_curation/raw_nc_transcripts.gff > ${OUT}/srna_curation/raw_nc_transcripts.fa
+	if [[ $? -ne 0 ]]; then error "Failed to extract fasta file of transcripts. Exiting..."; fi
+	prodigal -i ${OUT}/srna_curation/raw_nc_transcripts.fa -f gff -o ${OUT}/srna_curation/raw_nc_transcripts.prodigal.gff -q
+	if [[ $? -ne 0 ]]; then error "Failed to run Prodigal. Exiting..."; fi
+	
+	comm "pulling out transcripts with ORFs greater than 1/3 of their length"
+	snapt_filter_by_prodigal.py ${OUT}/srna_curation/raw_nc_transcripts.prodigal.gff ${OUT}/srna_curation/raw_nc_transcripts.gff\
+	 > ${OUT}/srna_curation/raw_nc_transcripts.noorfs.gff
+	if [[ $? -ne 0 ]]; then error "Failed to filter out signifficant prodigal hits. Exiting..."; fi
+
 	comm "dynamically thresholding transcripts that are too close to a contig's edge"
-	snapt_positional_curation.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.gff ${OUT}/srna_curation/good_nc_transcripts.gff $LENGTH
+	snapt_positional_curation.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.noorfs.gff ${OUT}/srna_curation/good_nc_transcripts.gff $LENGTH
 	if [[ $? -ne 0 ]]; then error "Failed to remove transcripts close to contig edges. Exiting..."; fi
 
 	comm "curating ncRNA predictions by size (minimum 50bp, maximum 500bp)"
