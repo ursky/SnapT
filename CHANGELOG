@@ -1,6 +1,11 @@
 SnapT v=0.3 (TBD)
 	added expression curve analysis to remove lowly expressed transcripts
 	increased minimum basepair coverage during transcript assembly from 2.5 to 10
+	added -P option to specify minimum read coverage for transcript assembly
+	increased hisat2 alignment requirements (much more strict)
+	eliminated spliced alignment with hisat2
+	major bug fix with faulty intercept with annotation
+	added sorting of annotation as failsafe
 
 SnapT v=0.2 (February 2019)
 	stringtie assembly is now guided

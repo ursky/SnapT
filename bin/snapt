@@ -41,7 +41,6 @@ help_message () {
 	echo "	-X INT		max insert size (default=$MAX_INSERT_VALUE)"
 	echo "	-m INT		minimum sRNA size during assembly (default=$MIN_LEN)"
 	echo "	-P INT		minimum reads per bp coverage to consider for transcript assembly (default=10)"
-	echo "	-T INT		minimum TPM expression of transcript to keep (default=1)"
 	echo ""
 	echo "	--version | -v	show current SnapT version"
 	echo "";}
@@ -71,7 +70,6 @@ MIN_LEN=50
 THREADS=1
 LENGTH=1000
 MIN_COV=10
-MIN_TPM=1
 
 OUT=none
 READS1=none
@@ -82,7 +80,7 @@ DATABASE=none
 
 
 # load in params
-OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:d:T:P: --long help,version -- "$@"`
+OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:d:P: --long help,version -- "$@"`
 # make sure the params are entered correctly
 if [ $? -ne 0 ]; then help_message; exit 1; fi
 
@@ -101,7 +99,6 @@ while true; do
 		-I) MIN_INSERT_VALUE=$2; shift 2;;
 		-X) MAX_INSERT_VALUE=$2; shift 2;;
 		-m) MIN_LEN=$2; shift 2;;
-		-T) MIN_TPM=$2; shift 2;;
 		-P) MIN_COV=$2; shift 2;;
                 -h | --help) help_message; exit 0; shift 1;;
 		-v | --version) echo SnapT v=${VERSION}; exit 0; shift 1;;
@@ -165,13 +162,15 @@ else
 	comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
 	if [[ $READS2 == none ]];then
 		hisat2 -p 20 --verbose --no-spliced-alignment\
-		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --quiet\
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --score-min C,-12,\
+		 --no-spliced-alignment --quiet\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
 		 -x ${OUT}/hisat2_alignment/hisat2_index\
 		 -U $READS1 -S ${OUT}/hisat2_alignment/alignment.sam
 	else
 		hisat2 -p 20 --verbose --no-spliced-alignment\
-		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --quiet\
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS\
+		--no-spliced-alignment --no-mixed --no-discordant --quiet --score-min C,-12,\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
 		 -x ${OUT}/hisat2_alignment/hisat2_index\
 		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2_alignment/alignment.sam
@@ -179,6 +178,7 @@ else
 	if [[ $? -ne 0 ]]; then error "Hisat2 alignment failed. Exiting..."; fi
 
 	comm "Sorting hisat2 SAM alignment file and converting it to BAM format"
+	if [[ -s ${OUT}/hisat2_alignment/alignment.bam.tmp.0000.bam ]]; then rm ${OUT}/hisat2_alignment/alignment.bam*; fi
 	samtools sort ${OUT}/hisat2_alignment/alignment.sam -O BAM -o ${OUT}/hisat2_alignment/alignment.bam -@ $THREADS
 	if [[ $? -ne 0 ]]; then error "Samtools sorting failed. Exiting..."; fi
 	rm ${OUT}/hisat2_alignment/alignment.sam
@@ -205,10 +205,16 @@ if [[ $ANNOTATION == none ]]; then
 		comm "Running Prokka on $GENOME. This usually takes a few minutes for single genomes and a few hours for metagenomes."
 		prokka --quiet --cpus $THREADS --outdir ${OUT}/prokka_annotation --prefix genome --force $GENOME
 		if [[ $? -ne 0 ]]; then error "Prokka annotation failed. Exiting..."; fi
+		comm "sorting PROKKA annotation"
+		bedtools sort -i ${OUT}/prokka_annotation/genome.gff > ${OUT}/prokka_annotation/genome.sorted.gff
+		mv ${OUT}/prokka_annotation/genome.sorted.gff > ${OUT}/prokka_annotation/genome.gff
 		ANNOTATION=${OUT}/prokka_annotation/genome.gff
 	fi
 else
-	comm "Using $ANNOTATION annotation to guide Stringtie"
+	comm "sorting $ANNOTATION annotation to guide Stringtie"
+	bedtools sort -i $ANNOTATION > ${OUT}/sorted_annotation.gff
+	if [[ $? -ne 0 ]]; then error "Failed to sort $ANNOTATION. Exiting..."; fi
+	ANNOTATION=${OUT}/sorted_annotation.gff
 fi
 
 
@@ -228,17 +234,20 @@ fi
 ########################################################################################################
 announcement "REMOVE PROTEIN-CODING TRANSCRIPTS"
 
-if [[ -s ${OUT}/transcript_assembly/prodigal_orfs.gff ]]; then
+if [[ -s ${OUT}/prodigal_orfs.gff ]]; then
 	comm "Looks like the Prodigal ORF predictions are already made. Skipping..."
 else
 	comm "Predicting open reading frames with Prodigal"
-	prodigal -i $GENOME -f gff -o ${OUT}/transcript_assembly/prodigal_orfs.gff -q
+	prodigal -i $GENOME -f gff -o ${OUT}/prodigal_orfs.gff -q
 	if [[ $? -ne 0 ]]; then error "PRODIGAL failed to annotate genome. Exiting..."; fi
+	comm "sorting Prodigal annotation"
+	bedtools sort -i ${OUT}/prodigal_orfs.gff > ${OUT}/prodigal_orfs.sorted.gff
+	if [[ $? -ne 0 ]]; then error "Failed to sort prodigal annotation. Exiting..."; fi
+	mv ${OUT}/prodigal_orfs.sorted.gff ${OUT}/prodigal_orfs.gff
 fi
-ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
+ORFS=${OUT}/prodigal_orfs.gff
 
-#if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
-if false; then
+if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
 	comm "Looks like intersecting the transcripts with the annotation and ORFs was already done. Skipping..."
 else
 	comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
@@ -354,9 +363,7 @@ grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncR
 grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
 snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
 
-warning "To reduce false positives, all ncRNAs that are below $MIN_TPM TPM expression will be removed. Please inspect the ${OUT}/expression_curve.png expression curve to confirm that this is a reasonable cut-off. If you would like to change this cut-off, re-run the SnapT with a different '-T' parameter. Note that SnapT will not have to re-do the previous steps if the output directory is kept the same."
-
-warning "Potentially delete $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1<tpm' | wc -l) transcripts that are below the $MIN_TPM tpm threshold. Keeping $(cat small_ncRNAs.gff | cut -f9 | cut -d";" -f5 | cut -d'"' -f2 | awk -v tpm=$MIN_TPM '$1>tpm' | wc -l) sRNAs!"
+warning "Please inspect the ${OUT}/expression_curve.png expression curve to confirm that the sRNA expression distribution is roughly exponential. If there is a tail of low-expression transcripts that does not follow a roughly linear trend, it is recommended that you apply a cut-off and remove transcripts below a chosen minimum TPM. Note that the TPMs are available in the GFF file. It there is a long low expression tail, it is also recommended to re-run the pipeline with a higher minimum transcript coverate (-P option)."
 
 comm "pulling out fasta sequences of small ncRNAs"
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
