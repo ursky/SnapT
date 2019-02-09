@@ -281,7 +281,7 @@ else
 	mv ${OUT}/nc_rna.gff ${OUT}/srna_curation/raw_nc_transcripts.gff
 
 	comm "re-running Prodigal on isolated transcripts to check for coding regions"
-	getfasta -s -fi $GENOME -bed ${OUT}/srna_curation/raw_nc_transcripts.gff > ${OUT}/srna_curation/raw_nc_transcripts.fa
+	bedtools getfasta -s -fi $GENOME -bed ${OUT}/srna_curation/raw_nc_transcripts.gff > ${OUT}/srna_curation/raw_nc_transcripts.fa
 	if [[ $? -ne 0 ]]; then error "Failed to extract fasta file of transcripts. Exiting..."; fi
 	prodigal -i ${OUT}/srna_curation/raw_nc_transcripts.fa -f gff -o ${OUT}/srna_curation/raw_nc_transcripts.prodigal.gff -q
 	if [[ $? -ne 0 ]]; then error "Failed to run Prodigal. Exiting..."; fi
