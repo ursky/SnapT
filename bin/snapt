@@ -234,18 +234,18 @@ fi
 ########################################################################################################
 announcement "REMOVE PROTEIN-CODING TRANSCRIPTS"
 
-if [[ -s ${OUT}/prodigal_orfs.gff ]]; then
+if [[ -s ${OUT}/transcript_assembly/prodigal_orfs.gff ]]; then
 	comm "Looks like the Prodigal ORF predictions are already made. Skipping..."
 else
 	comm "Predicting open reading frames with Prodigal"
-	prodigal -i $GENOME -f gff -o ${OUT}/prodigal_orfs.gff -q
+	prodigal -i $GENOME -f gff -o ${OUT}/transcript_assembly/prodigal_orfs.gff -q
 	if [[ $? -ne 0 ]]; then error "PRODIGAL failed to annotate genome. Exiting..."; fi
 	comm "sorting Prodigal annotation"
-	bedtools sort -i ${OUT}/prodigal_orfs.gff > ${OUT}/prodigal_orfs.sorted.gff
+	bedtools sort -i ${OUT}/transcript_assembly/prodigal_orfs.gff > ${OUT}/transcript_assembly/prodigal_orfs.sorted.gff
 	if [[ $? -ne 0 ]]; then error "Failed to sort prodigal annotation. Exiting..."; fi
-	mv ${OUT}/prodigal_orfs.sorted.gff ${OUT}/prodigal_orfs.gff
+	mv ${OUT}/transcript_assembly/prodigal_orfs.sorted.gff ${OUT}/transcript_assembly/prodigal_orfs.gff
 fi
-ORFS=${OUT}/prodigal_orfs.gff
+ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
 
 if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
 	comm "Looks like intersecting the transcripts with the annotation and ORFs was already done. Skipping..."
@@ -368,6 +368,7 @@ if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without Blastx 
 comm "cleaning up"
 mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
 cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
+mv ${OUT}/sorted_annotation.gff ${OUT}/transcript_assembly/sorted_annotation.gff
 
 comm "plotting small ncRNA TMP values for minimum expression cut-off evaluation"
 grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
