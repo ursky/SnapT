@@ -48,7 +48,7 @@ gunzip Rfam.cm.gz
 ## USAGE
  Example run of Snapt:
  ```
- snapt -1 READS/ALL_1.fastq -2 READS/ALL_2.fastq -g metagenomic_assembly.fasta -a metagenomic_assembly.gff -l 3000 -o SNAPT_OUT -t 48 -d ../DATABASES/NCBI_nr/nr.dmnd
+ snapt -1 READS/ALL_1.fastq -2 READS/ALL_2.fastq -g metagenomic_assembly.fasta -a metagenomic_assembly.gff -l 3000 -o SNAPT_OUT -t 48 -d ../DATABASES/NCBI_nr/nr.dmnd -rfam ../DATABASES/rfam/Rfam.cm
  ```
  
  Help message
