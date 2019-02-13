@@ -9,7 +9,7 @@
 #SBATCH --mem=100G
 
 
-VERSION="v0.2"
+VERSION="v0.3"
 echo snapt ${@}
 
 ##############################################################################################################################################################
@@ -33,7 +33,8 @@ help_message () {
 	echo "	-l INT		minimum contig length (default=1000) for ncRNA annotation"
 	echo "	-o STR          output directory"
 	echo "	-t INT		number of threads (default=1)"
-	echo "	-d STR		nr protein database DIAMOND .dmnd index (see installation instructions for details)"
+	echo "	-D | --nr	nr protein database DIAMOND .dmnd index (see installation instructions for details)"
+	echo "	-R | --rfam	Rfap database (rfam.cm) for annotation of known ncRNAs/sRNAs (see installation instructions for details)"
 	echo ""
 	echo "Additional options:"
 	echo "	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR)"
@@ -77,10 +78,10 @@ READS2=none
 GENOME=none
 ANNOTATION=none
 DATABASE=none
-
+RFAM=none
 
 # load in params
-OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:d:P: --long help,version -- "$@"`
+OPTS=`getopt -o hvt:1:2:g:a:o:r:I:X:m:l:D:R:P: --long help,version,rfam,nr -- "$@"`
 # make sure the params are entered correctly
 if [ $? -ne 0 ]; then help_message; exit 1; fi
 
@@ -94,7 +95,8 @@ while true; do
 		-a) ANNOTATION=$2; shift 2;;
 		-t) THREADS=$2; shift 2;;
 		-l) LENGTH=$2; shift 2;;
-		-d) DATABASE=$2; shift 2;;
+		-D | --nr) DATABASE=$2; shift 2;;
+		-R | --rfam) RFAM=$2; shift 2;;
 		-r) STRAND_MAP_VALUE=$2; shift 2;;
 		-I) MIN_INSERT_VALUE=$2; shift 2;;
 		-X) MAX_INSERT_VALUE=$2; shift 2;;
@@ -123,9 +125,12 @@ elif [ ! -s $GENOME ]; then
 fi
 
 if [[ $DATABASE == none ]]; then
-	warning "You did not specify the NCBI_nr database location with the -d option. SnapT will not be able to perform the homology search!"
+	warning "You did not specify the NCBI_nr database location with the --nr option. SnapT will not be able to perform the homology search!"
 fi
 
+if [[ $RFAM == none ]]; then
+	warning "You did not specify the Rfam database location with the --rfam option. SnapT will not be able to perform the homology search!"
+fi
 
 announcement "BEGIN PIPELINE!"
 comm "setting up output folder and copying relevant information..."
@@ -308,7 +313,7 @@ comm "Out of $(cat ${OUT}/srna_curation/good_nc_transcripts.gff | wc -l) ncRNAs,
 ########################         CROSS REFERING TRANSCRIPTS WITH BLASTX         ########################
 ########################################################################################################
 if [[ $DATABASE == none ]]; then
-	announcement "NCBI_nr database not provided. Unable to use homology search to further curate small ncRNAs. You will find the final predictions in ${OUT}/small_nc_transcripts.gff. This is not ideal, but the pipeline completed successfully."
+	announcement "NCBI_nr database not provided. Unable to use homology search to further curate small ncRNAs. You will find the final predictions in ${OUT}/small_nc_transcripts.gff. This is not ideal - please consult the SnapT installation instructions to download and use the database. You can continue the annotation progress by re-runing SnapT on the same output directory but providing the database path."
 	exit 0
 fi
 
@@ -362,13 +367,58 @@ else
 fi
 
 comm "pulling out small ncRNA preditions without any blastx hits to the NR database"
-snapt_filter_by_blastx.py ${OUT}/blastx_search/signifficant_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/final_small_nc_transcripts.gff
+snapt_filter_by_blastx.py ${OUT}/blastx_search/signifficant_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/blastx-filtered_small_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without Blastx hits. Exiting..."; fi
 
 comm "cleaning up"
 mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
 cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 mv ${OUT}/sorted_annotation.gff ${OUT}/transcript_assembly/sorted_annotation.gff
+
+
+########################################################################################################
+########################          CROSS REFERING TRANSCRIPTS WITH RFAM          ########################
+########################################################################################################
+if [[ $RFAM == none ]]; then
+	announcement "Rfam database not provided. Unable to use homology search to further annotate small ncRNAs. You will find the final predictions in ${OUT}/small_ncRNAs.gff. This is not ideal - please consult the SnapT installation instructions to download and use the database. You can continue the annotation progress by re-runing SnapT on the same output directory but providing the database path."
+	exit 0
+fi
+
+announcement "CROSS REFERING TRANSCRIPTS WITH RFAM DATABASE"
+
+if [[ -s ${OUT}/rfam_cmscan/rfam_hits.tblout ]]; then
+	comm "Looks like rfam cmscan was already run - ${OUT}/rfam_cmscan/rfam_hits.tblout exists. Skipping..."
+else
+	mkdir ${OUT}/rfam_cmscan
+	cp ${OUT}/small_ncRNAs.gff ${OUT}/rfam_cmscan/small_ncRNAs.gff
+
+	comm "pulling out fasta files of transcripts from $GENOME assembly"
+	bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/rfam_cmscan/small_ncRNAs.gff > ${OUT}/rfam_cmscan/small_ncRNAs.fa
+	if [[ $? -ne 0 ]]; then error "Failed to pull out fasta file from ${OUT}/rfam_cmscan/small_ncRNAs.gff GFF. Exiting..."; fi
+	
+	
+	# download and index the rfam cm database:
+	# wget ftp://ftp.ebi.ac.uk/pub/databases/Rfam/14.1/Rfam.cm.gz
+	# gunzip Rfam.cm.gz
+	# cmpress Rfam.cm
+	comm "running infernal cmscan on ${OUT}/rfam_cmscan/intergenic.fa against the $RFAM database"
+	cmscan --notextw --cut_ga --FZ 5 --nohmmonly --cpu $THREADS\
+	--tblout ${OUT}/rfam_cmscan/rfam_hits.tblout -o ${OUT}/rfam_cmscan/cmscan.out $RFAM ${OUT}/rfam_cmscan/small_ncRNAs.fa
+	if [[ $? -ne 0 ]]; then error "Failed rfam search against the database. Exiting..."; fi
+
+	comm "Out of $(cat ${OUT}/small_ncRNAs.gff ${OUT}/rfam_cmscan/small_ncRNAs.gff | wc -l) small ncRNA sequences, $(cat ${OUT}/rfam_cmscan/rfam_hits.tblout | grep -v "sRNA" | grep -v "#" | wc -l) had non-sRNA signifficant hits against the rfam database"
+fi
+
+comm "pulling out small ncRNA preditions without any non-sRNA infernal hits to the rfam database"
+snapt_filter_by_rfam.py ${OUT}/rfam_cmscan/rfam_hits.tblout ${OUT}/rfam_cmscan/small_ncRNAs.gff > ${OUT}/rfam_cmscan/filtered_small_ncRNAs.gff
+if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without non-sRNA infernal hits. Exiting..."; fi
+
+
+########################################################################################################
+########################         FINAL PARSING AND CLEAN UP         ########################
+########################################################################################################
+announcement "FINAL CLEAN_UP AND EXPRESSION REPORTING"
+cp ${OUT}/rfam_cmscan/filtered_small_ncRNAs.gff ${OUT}/small_ncRNAs.gff
 
 comm "plotting small ncRNA TMP values for minimum expression cut-off evaluation"
 grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
@@ -386,5 +436,6 @@ bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_int
 ########################     sRNA DISCOVERY PIPELINE SUCCESSFULLY FINISHED!!!   ########################
 ########################################################################################################
 announcement "SMALL NC_RNA DISCOVERY PIPELINE FINISHED SUCCESSFULLY! ANNOTATED $(cat ${OUT}/small_ncRNAs.gff | grep intergenic | wc -l) INTERGENIC AND $(cat ${OUT}/small_ncRNAs.gff | grep antisense | wc -l) ANTISENSE TRANSCRIPTS."
+
 
 

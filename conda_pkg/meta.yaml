@@ -19,6 +19,7 @@ requirements:
     - bedtools
     - diamond
     - matplotlib
+    - infernal
 
 about:
   home: https://github.com/ursky/SnapT

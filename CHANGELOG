@@ -7,6 +7,8 @@ SnapT v=0.3 (TBD)
 	major bug fix with faulty intercept with annotation
 	added sorting of annotation as failsafe
 	added test to see if ncRNAs have a ORF longer than 1/3 their length
+	added NR protein database homology search with DIAMOND to remove proteins
+	added Rfam homology search to remove irrelevant ncRNAs
 
 SnapT v=0.2 (February 2019)
 	stringtie assembly is now guided

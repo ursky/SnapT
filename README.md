@@ -28,17 +28,18 @@
  conda install -c ursky snapt
  ```
  
- Download and index the NCBI NR protain database (you will need to input the nr.dmnd index into snapt):
+ Download and index the NCBI NR protain database (you will need to input the nr.dmnd index into snapt with the -D or --nr option):
  ```
 wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
 gunzip nr.gz
 mv nr nr.faa
 diamond makedb --in nr.faa -d nr
 ```
- Finally, download the rfam non-coding RNA database (you will need to input the Rfam.cm database into snapt with the -rfam option)
+ Finally, download and index the Rfam non-coding RNA database (you will need to input the Rfam.cm database into snapt with the -R or --rfam option)
  ```
 wget ftp://ftp.ebi.ac.uk/pub/databases/Rfam/14.1/Rfam.cm.gz
 gunzip Rfam.cm.gz
+cmpress Rfam.cm
 ```
 
 #### Manual installation:
