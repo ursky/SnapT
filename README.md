@@ -64,6 +64,7 @@ SnapT options:
 	-o STR          output directory
 	-t INT		number of threads (default=1)
 	-d STR		NCBI_nr protein database DIAMOND index (see installation instructions for details)
+	-rfam 		run analysis of ncRNAs detected against rfam database (rfam.cm) to annotate known ncRNAs/sRNAs (see installation instructions for details)
 
 Aligment options:
 	-r STR		rna-strandness: R or F for single-end, RF or FR for paired-end (default=FR)
