@@ -420,7 +420,7 @@ fi
 
 comm "pulling out small ncRNA preditions without any non-sRNA infernal hits to the rfam database"
 cut -d '"' -f2 ${OUT}/blastx-filtered_small_nc_transcripts.gff | paste - ${OUT}/blastx-filtered_small_nc_transcripts.gff > ${OUT}/blastx-filtered_small_nc_transcripts_with_names.gff
-python return_different_lines_file2_from_word_in_file1.py ${OUT}/rfam_cmscan/signifficant_hits.list ${OUT}/blastx-filtered_small_nc_transcripts.gff > ${OUT}/rfam_cmscan/final_small_nc_transcripts_with_names.gff
+python rfam_filter.py ${OUT}/rfam_cmscan/signifficant_hits.list ${OUT}/blastx-filtered_small_nc_transcripts.gff > ${OUT}/rfam_cmscan/final_small_nc_transcripts_with_names.gff
 cut -f2-10 ${OUT}/rfam_cmscan/final_small_nc_transcripts_with_names.gff > ${OUT}/rfam_cmscan/final_small_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without non-sRNA infernal hits. Exiting..."; fi
 
