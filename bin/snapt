@@ -221,7 +221,7 @@ else
 	if [[ $? -ne 0 ]]; then error "Failed to sort $ANNOTATION. Exiting..."; fi
 	ANNOTATION=${OUT}/sorted_annotation.gff
 fi
-
+comm "There are a total of $(cat $ANNOTATION | wc -l) transcripts in the annotation."
 
 if [[ -s ${OUT}/transcript_assembly/raw_transcripts.gff ]]; then
 	comm "Looks like the stringtie assembly already exists in the output directory. Skipping..."
@@ -233,6 +233,7 @@ else
 		-p $THREADS -m $MIN_LEN -G $ANNOTATION -c $MIN_COV
 	if [[ $? -ne 0 ]]; then error "Stringtie transcript assembly failed. Exiting..."; fi
 fi
+comm "Assembled $(cat ${OUT}/transcript_assembly/raw_transcripts.gff | wc -l) transcripts from the alignment with Stringtie."
 
 ########################################################################################################
 ########################             REMOVE PROTEIN-CODING TRANSCRIPTS          ########################
@@ -248,9 +249,11 @@ else
 	comm "sorting Prodigal annotation"
 	bedtools sort -i ${OUT}/transcript_assembly/prodigal_orfs.gff > ${OUT}/transcript_assembly/prodigal_orfs.sorted.gff
 	if [[ $? -ne 0 ]]; then error "Failed to sort prodigal annotation. Exiting..."; fi
+	
 	mv ${OUT}/transcript_assembly/prodigal_orfs.sorted.gff ${OUT}/transcript_assembly/prodigal_orfs.gff
 fi
 ORFS=${OUT}/transcript_assembly/prodigal_orfs.gff
+comm "There are $(cat ${OUT}/transcript_assembly/prodigal_orfs.sorted.gff | wc -l) Prodigal ORFs identified."
 
 if [[ -s ${OUT}/transcript_assembly/ncRNA.gff ]]; then
 	comm "Looks like intersecting the transcripts with the annotation and ORFs was already done. Skipping..."
@@ -258,12 +261,12 @@ else
 	comm "Intersecting the transcripts with the ORFs found with Prodigal to remove transcripts that are from coding regions"
 	snapt_intersect_gff.py $ORFS ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.orf.gff
 	if [[ ! -s ${OUT}/transcript_assembly/ncRNA.orf.gff ]]; then error "Could not intersect the transcripts with the ORFs. Exiting..."; fi
-	comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.gff | wc -l) putative non-coding transcripts using the Prodigal annotation."
+	comm "Out of $(cat ${OUT}/transcript_assembly/raw_transcripts.gff | wc -l) assembled transcripts, identified $(cat ${OUT}/transcript_assembly/ncRNA.orf.gff | wc -l) putative non-coding transcripts using the Prodigal annotation."
 
 	comm "Intersecting the transcripts with the provided annotation in $ANNOTATION"
 	snapt_intersect_gff.py $ANNOTATION ${OUT}/transcript_assembly/raw_transcripts.gff > ${OUT}/transcript_assembly/ncRNA.anno.gff
 	if [[ ! -s ${OUT}/transcript_assembly/ncRNA.anno.gff ]]; then error "Could not intersect the transcripts with the provided annotation. Exiting..."; fi
-	comm "Identified $(cat ${OUT}/transcript_assembly/ncRNA.anno.gff | wc -l) putative non-coding transcripts using the $ANNOTATION annotation."
+	comm "Out of $(cat ${OUT}/transcript_assembly/raw_transcripts.gff | wc -l) assembled transcripts, identified $(cat ${OUT}/transcript_assembly/ncRNA.anno.gff | wc -l) putative non-coding transcripts using the $ANNOTATION annotation."
 
 	comm "Consolidating intergenic and antisense transcripts predicted from ORFs and $ANNOTATION"
 	snapt_consolidate_transcripts.py ${OUT}/transcript_assembly/ncRNA.orf.gff ${OUT}/transcript_assembly/ncRNA.anno.gff > ${OUT}/transcript_assembly/ncRNA.gff
@@ -367,13 +370,13 @@ else
 fi
 
 comm "pulling out small ncRNA preditions without any blastx hits to the NR database"
-snapt_filter_by_blastx.py ${OUT}/blastx_search/signifficant_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/blastx-filtered_small_nc_transcripts.gff
+snapt_filter_by_blastx.py ${OUT}/blastx_search/signifficant_hits.list ${OUT}/small_nc_transcripts.gff > ${OUT}/blastx_search/filtered_small_nc_transcripts.gff
 if [[ $? -ne 0 ]]; then error "Failed to filter out small ncRNAs without Blastx hits. Exiting..."; fi
 
 comm "cleaning up"
 mv ${OUT}/small_nc_transcripts.* ${OUT}/blastx_search
-cp ${OUT}/blastx_search/final_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 mv ${OUT}/sorted_annotation.gff ${OUT}/transcript_assembly/sorted_annotation.gff
+cp ${OUT}/blastx_search/filtered_small_nc_transcripts.gff ${OUT}/small_ncRNAs.gff
 
 
 ########################################################################################################
@@ -401,7 +404,7 @@ else
 	# wget ftp://ftp.ebi.ac.uk/pub/databases/Rfam/14.1/Rfam.cm.gz
 	# gunzip Rfam.cm.gz
 	# cmpress Rfam.cm
-	comm "running infernal cmscan on ${OUT}/rfam_cmscan/intergenic.fa against the $RFAM database"
+	comm "running Infernal cmscan on ${OUT}/rfam_cmscan/intergenic.fa against the $RFAM database"
 	cmscan --notextw --cut_ga --FZ 5 --nohmmonly --cpu $THREADS\
 	--tblout ${OUT}/rfam_cmscan/rfam_hits.tblout -o ${OUT}/rfam_cmscan/cmscan.out $RFAM ${OUT}/rfam_cmscan/small_ncRNAs.fa
 	if [[ $? -ne 0 ]]; then error "Failed rfam search against the database. Exiting..."; fi
