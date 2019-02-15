@@ -10,8 +10,8 @@
  5. Small ncRNAs must be between 50nt and 500nt in length
  6. The transcripts must not have signifficant homology with any protein in the NCBI_NR database (query cover>30%, Bitscore>50, evalue<0.0001, and identity>30%).
 
-## SnapT pipeline workflow
- ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/WicIJDP.png)
+## SNAPT PIPELINE WORKFLOW
+ ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/pLdpRls.png)
 
 
 ## INSTALLATION
