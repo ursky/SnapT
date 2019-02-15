@@ -298,6 +298,7 @@ else
 	snapt_filter_by_prodigal.py ${OUT}/srna_curation/raw_nc_transcripts.prodigal.gff ${OUT}/srna_curation/raw_nc_transcripts.gff\
 	 > ${OUT}/srna_curation/raw_nc_transcripts.noorfs.gff
 	if [[ $? -ne 0 ]]; then error "Failed to filter out signifficant prodigal hits. Exiting..."; fi
+	comm "out of $(cat ${OUT}/srna_curation/raw_nc_transcripts.gff | wc -l) transcripts, $(cat ${OUT}/srna_curation/raw_nc_transcripts.noorfs.gff | wc -l) had no notable ORFs within them"
 
 	comm "dynamically thresholding transcripts that are too close to a contig's edge"
 	snapt_positional_curation.py $GENOME ${OUT}/srna_curation/raw_nc_transcripts.noorfs.gff ${OUT}/srna_curation/good_nc_transcripts.gff $LENGTH
