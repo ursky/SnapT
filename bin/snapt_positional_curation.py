@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import sys
 # usage: positional_thresholding.py assembly.fa nc_rna.gff out_file.gff
 # This script computes the optimal cut-off for the minimum distance of a ncRNA to the contig edge
