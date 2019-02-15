@@ -30,7 +30,7 @@ help_message () {
 	echo "	-2 SRT		reverse transcriptome (or metatranscriptome) reads (optional)"
 	echo "	-g STR		genome (or metagenome) fasta file"
 	echo "	-a STR		genome (or metagenome) annotation gtf/gff file (optional, but recommended)"
-	echo "	-l INT		minimum contig length (default=1000) for ncRNA annotation"
+	echo "	-l INT		minimum contig length (default=3000) for ncRNA annotation"
 	echo "	-o STR          output directory"
 	echo "	-t INT		number of threads (default=1)"
 	echo "	-D | --nr	nr protein database DIAMOND .dmnd index (see installation instructions for details)"
@@ -69,7 +69,7 @@ MIN_INSERT_VALUE=0
 MAX_INSERT_VALUE=500
 MIN_LEN=50
 THREADS=1
-LENGTH=1000
+LENGTH=3000
 MIN_COV=10
 
 OUT=none
