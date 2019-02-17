@@ -1,4 +1,4 @@
-**Current SnapT version = 0.2**. To update, run `conda install -c ursky snapt=0.2`
+**Current SnapT version = 0.3**. To update, run `conda install -c ursky snapt=0.3`
 
 # SnapT - Small NcRNA Annotation Pipeline for (meta)Transcriptomic data
 
@@ -6,9 +6,11 @@
  1. Intergenic transcripts must be at least 30nt away from any gene or ORF on both strands 
  2. Antisense transcripts must be 30nt away from any gene on their strand, but overlap with a gene on the opposite strand by at least 10nt. 
  3. Small peptides (<100nt) are not counted as a genes if they are encoded in a transcript that is more than 3 times their length. 
+ 4. The non-coding transcripts cannot contain any ORF greater than 1/3 of their length.
  4. Predicted non-coding transcripts near contig edges are discarded due to mis-annotation potential. 
  5. Small ncRNAs must be between 50nt and 500nt in length
  6. The transcripts must not have signifficant homology with any protein in the NCBI_NR database (query cover>30%, Bitscore>50, evalue<0.0001, and identity>30%).
+ 7. The transcripts must not have homology with any model (except for small RNAs) in the Rfam non-coding RNA database.
 
 ## SNAPT PIPELINE WORKFLOW
  ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/pLdpRls.png)

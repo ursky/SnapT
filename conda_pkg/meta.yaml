@@ -11,7 +11,7 @@ requirements:
   run:
     - bedtools
     - blast
-    - diamond
+    - diamond 0.9*
     - hisat2
     - infernal
     - matplotlib
