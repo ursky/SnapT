@@ -15,7 +15,7 @@ for line in open(sys.argv[1]):
 	positions = transcript.split(":")[1].split("-")
 	rna_length = int(positions[1])-int(positions[0])
 	orf_length = int(cut[4]) - int(cut[3])
-	if orf_length > rna_length/3:
+	if orf_length > rna_length/2:
 		blacklist[transcript]=None
 
 # only print non-blacklisted transcripts

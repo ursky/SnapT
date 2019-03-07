@@ -9,9 +9,8 @@ for line in open(sys.argv[1]):
 	cut=line.strip().split()
 	if len(cut)<15:
 		continue
-	if "sRNA" in line:
-		continue
-	skip[cut[2].split("(")[0]]=None
+	if "tRNA" in line or "RNase P" in line:
+		skip[cut[2].split("(")[0]]=None
 
 inter_skipped=0
 inter_passed=0

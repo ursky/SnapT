@@ -33,7 +33,7 @@ def load_contigs_from_gff(filename):
 		
 
 def load_transcripts(filename, lengths):
-	distances=[]
+	distances={}
 	for line in open(filename):
 		if line[0]=="#":
 			continue
@@ -48,7 +48,9 @@ def load_transcripts(filename, lengths):
 	
 		distance_to_end = min(st, lengths[contig]-fi)
 		#print lengths[contig], st, fi, distance_to_end
-		distances.append(distance_to_end)
+		if contig not in distances:
+			distances[contig]=[]
+		distances[contig].append(distance_to_end)
 	return distances
 
 
@@ -87,76 +89,55 @@ def filter_transcripts(filename, lengths, min_dist, min_length, outfile):
 	f.close()
 			
 
-def compute_statistics(contig_lengths, positions, bin_size):
+def compute_statistics(contig_lengths, distances_to_edge, cutoff):
 	contig_length_bins=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-	for contig in contig_lengths:
-		length=contig_lengths[contig]
-		n_bins = int(0.5*length/bin_size)
-		for i in range(n_bins):
-			if i>=len(contig_length_bins):
-				break
-			contig_length_bins[i]+=1
-
-	trans_position_bins=[]
-	for i in range(len(contig_length_bins)):
-		trans_position_bins.append(0)
-	for transcript in positions:
-		bin_pos = int(transcript/bin_size)
-		if bin_pos<len(trans_position_bins):
-			trans_position_bins[bin_pos]+=1
-
-	bin_representation=[]
-	for i, n_transcripts in enumerate(trans_position_bins):
-		n_contigs = contig_length_bins[i]
-		bin_representation.append(float(n_transcripts)/n_contigs)
-	
-	return bin_representation
+	n_bins = len(contig_length_bins)
 
 
-def optimize_cut_off(contig_lengths, positions):
-	cut_off=20
+	for contig in distances_to_edge:
+		for distance in distances_to_edge[contig]:
+			if distance<cutoff:
+				continue
+			relative_position = n_bins*2*distance/contig_lengths[contig]
+			contig_length_bins[relative_position]+=1
+	for i in range(n_bins):
+		contig_length_bins[i]=str(contig_length_bins[i])
+	return contig_length_bins
+
+
+
+
+def optimize_cut_off(contig_lengths, distances_to_edge):
+	cut_off=0
 	while True:
 		if cut_off>300:
 			break
 		print "Computing overrepresentation at cut off: "+ str(cut_off)
-		representation = compute_statistics(contig_lengths, positions, cut_off)
-		print representation[0], representation[1], representation[2], representation[3], representation[4], representation[5]
+		representation = compute_statistics(contig_lengths, distances_to_edge, cut_off)
+		print " ".join(representation)
 		if representation[2]==0 or representation[3]==0:
 			cut_off+=10
 			continue
-		ratio2 = representation[1]/representation[2]
-		ratio3 = representation[2]/representation[3]
-
-		if ratio2<1.3 and ratio2>0.85 and ratio3<1.3 and ratio3>0.77:
+		
+		ratio = float(representation[0])/float(representation[1])
+		if ratio<1.25:
 			break
-		cut_off+=10
+		else:
+			cut_off+=10
 	print "Looks like using a minimum distance of "+str(cut_off+10)+" is safe!"
 	return cut_off+10
 		
 
 #MAIN
+genome_file=sys.argv[1]
+annotation_file=sys.argv[2]
+out_file=sys.argv[3]
+min_length = int(sys.argv[4])
 
-if len(sys.argv)==5:
-	genome_file=sys.argv[1]
-	annotation_file=sys.argv[2]
-	out_file=sys.argv[3]
-	contig_lengths = load_contigs(genome_file)
-	min_length = int(sys.argv[4])
-elif len(sys.argv)==4:
-	annotation_file=sys.argv[1]
-	out_file=sys.argv[2]
-	contig_lengths = load_contigs_from_gff(annotation_file)
-	min_length = int(sys.argv[3])
-else:
-	print "wrong number of arguments! Usage: python2.7 script.py genome.fa genome.gff output.gff"
-	print sys.argv
-	quit()
-
-
-positions = load_transcripts(annotation_file, contig_lengths)
-cut_off = optimize_cut_off(contig_lengths, positions)
+contig_lengths = load_contigs(genome_file)
+distances_to_edge = load_transcripts(annotation_file, contig_lengths)
+cut_off = optimize_cut_off(contig_lengths, distances_to_edge)
 filter_transcripts(annotation_file, contig_lengths, cut_off, min_length, out_file)
-
 
 
 
