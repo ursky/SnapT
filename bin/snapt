@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-#SBATCH
-#SBATCH --job-name=SnapT
-#SBATCH --partition=shared
-#SBATCH --time=72:0:0
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
-#SBATCH --mem=100G
 
-
-VERSION="v0.3"
+VERSION="v0.4"
 echo snapt ${@}
 
 ##############################################################################################################################################################
@@ -150,6 +141,27 @@ fi
 ########################         ALIGN RNA READS TO GENOME WITH HISAT2          ########################
 ########################################################################################################
 announcement "ALIGN RNA READS TO GENOME WITH HISAT2"
+
+comm "Making sure the Perl environment is linked to the conda Perl libraries..."
+hisat2 --version
+if [[ $? -ne 0 ]]; then
+	comm "looks like our default perl libraries are not the conda ones. Manually setting perl5 library directory"
+	conda_path=$(which snapt)
+	echo "metawrap path: $conda_path"
+	conda_path=${conda_path%/*}
+	if [ $(echo -n $conda_path | tail -c 1) = "/" ]; then conda_path=${conda_path%/*}; fi
+	conda_path=${conda_path%/*}
+	if [ ! -d ${conda_path}/lib/perl5/site_perl/5.22.0 ]; then
+		error "${conda_path}/lib/perl5/site_perl/5.22.0 does not exixt. This is probably not a conda installation of SnapT. Install the necessary Perl dependancies to run hisat2. Exiting..."
+	fi
+	perl_libs=${conda_path}/lib/perl5/site_perl/5.22.0
+	echo "Will use perl5 libraries located in $perl_libs - hopefully they are there..."
+	export PERL5LIB="$perl_libs"
+else
+	echo "Looks like the perl libraries are set correctly. Continue..."
+fi
+
+
 
 if [[ -s ${OUT}/hisat2_alignment/hisat2_index.1.ht2 ]]; then
 	comm "Looks like the Hisat2 index already exists in the output directory. Skipping..."

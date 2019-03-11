@@ -6,6 +6,7 @@ Snapt v=0.4 (TBD)
 	changed default pileup minimum for antisense transcripts (--antisense-min) to 10 reads
 	maximum reading frame allowed inside a ncRNA increased from 1/3 to 1/2 of the ncRNA length
 	end filtering is now works faster and looks for tip enrichment based on the contig length being split into 20 bins
+	added failsafe to attempt to automatically set perl library location to the conda libraries when running hisat2
 
 SnapT v=0.3 (Late February 2019)
 	added expression curve analysis to remove lowly expressed transcripts
