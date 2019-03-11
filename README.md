@@ -1,4 +1,4 @@
-**Current SnapT version = 0.3**. To update, run `conda install -c ursky snapt=0.3`
+**Current SnapT version = 0.4**. To update, run `conda install -c ursky snapt=0.3`
 
 # SnapT - Small NcRNA Annotation Pipeline for (meta)Transcriptomic data
 
