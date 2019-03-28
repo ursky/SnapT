@@ -84,7 +84,7 @@ SnapT is currently under early development. Stay tuned for future publication.
 ### Acknowledgements
 Authors of pipeline: [Gherman Uritskiy](https://github.com/ursky) and [Diego Gelsinger](https://github.com/dgelsin)
 
-Principal Investigators: [Jocelyne DiRuggiero](http://bio.jhu.edu/directory/jocelyne-diruggiero/) and [James Taylor](http://bio.jhu.edu/directory/james-taylor/)
+Principal Investigator: [Jocelyne DiRuggiero](http://bio.jhu.edu/directory/jocelyne-diruggiero/)
 
 Institution: Johns Hopkins, [Department of Cell, Molecular, Developmental Biology, and Biophysics](http://cmdb.jhu.edu/) 
 
