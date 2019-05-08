@@ -3,6 +3,8 @@
 # SnapT - Small NcRNA Annotation Pipeline for (meta)Transcriptomic data
 
  SnapT is a **S**mall **n**on-coding RNA **a**nnotation **p**ipeline for **T**ranscriptomic or metatranscriptomic data. SnapT leverages transcriptomic or metatranscriptimic data to find, annotate, and quantify intergenic and anti-sense sRNA transcripts. To do this, SnapT aligns reads from a stranded RNAseq experiment to the reference (meta)genome, and then assembles the reads into transcripts. The transcripts are then intersected with the genome annotation as well as open reading frames to select for only transcripts that fall on non-coding regions, and further filtered to produce a final set of predicted small ncRNAs: 
+ ![SnapT overview](https://i.imgur.com/lHC7hNB.png)
+ 
  1. Intergenic transcripts must be at least 30nt away from any gene or ORF on both strands 
  2. Antisense transcripts must be 30nt away from any gene on their strand, but overlap with a gene on the opposite strand by at least 10nt. 
  3. Small peptides (<100nt) are not counted as a genes if they are encoded in a transcript that is more than 3 times their length. 
@@ -13,7 +15,7 @@
  7. The transcripts must not have homology with any model (except for small RNAs) in the Rfam non-coding RNA database.
 
 ## SNAPT PIPELINE WORKFLOW
- ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/pLdpRls.png)
+ ![SnapT small ncRNA annotation pipeline](https://i.imgur.com/pLdpRls.png | width=50)
 
 
 ## INSTALLATION
