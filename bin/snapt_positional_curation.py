@@ -7,7 +7,7 @@ def load_contigs(filename):
 	contigs={}
 	for line in open(filename):
 		if line[0]==">":
-			contig=line[1:-1]
+			contig=line[1:-1].split()[0]
 			contigs[contig]=0
 		else:
 			contigs[contig]+=len(line.strip())

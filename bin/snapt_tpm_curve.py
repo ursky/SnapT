@@ -56,7 +56,7 @@ if len(sys.argv)>3:
 else:
 	ax.legend()
 
-ax.set_xlabel("log10 Transcript count", fontsize=15)
+ax.set_xlabel("log10 Small ncRNA count", fontsize=15)
 ax.set_ylabel("log10 Transcript expression (TPM)", fontsize=15)
 ax.set_xscale('log')
 ax.set_yscale('log')

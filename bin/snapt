@@ -181,7 +181,7 @@ if [[ -s ${OUT}/hisat2_alignment/alignment.bam ]]; then
 else
 	comm "Aligning $READS1 and $READS2 to $GENOME with hisat2"
 	if [[ $READS2 == none ]];then
-		hisat2 -p 20 --verbose --no-spliced-alignment\
+		hisat2 --verbose --no-spliced-alignment\
 		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --score-min C,-12,\
 		 --no-spliced-alignment --quiet\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE\
@@ -189,8 +189,8 @@ else
 		 -U $READS1 -S ${OUT}/hisat2_alignment/alignment.sam
 	else
 		hisat2 -p 20 --verbose --no-spliced-alignment\
-		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS\
-		--no-spliced-alignment --no-mixed --no-discordant --quiet --score-min C,-12,\
+		 --rna-strandness $STRAND_MAP_VALUE --threads $THREADS --score-min C,-12,\
+		--no-spliced-alignment --no-mixed --no-discordant --quiet\
 		 -I $MIN_INSERT_VALUE -X $MAX_INSERT_VALUE \
 		 -x ${OUT}/hisat2_alignment/hisat2_index\
 		 -1 $READS1 -2 $READS2 -S ${OUT}/hisat2_alignment/alignment.sam
@@ -227,6 +227,7 @@ if [[ $ANNOTATION == none ]]; then
 		if [[ $? -ne 0 ]]; then error "Prokka annotation failed. Exiting..."; fi
 		comm "sorting PROKKA annotation"
 		bedtools sort -i ${OUT}/prokka_annotation/genome.gff > ${OUT}/prokka_annotation/genome.sorted.gff
+		mv ${OUT}/prokka_annotation/genome.gff > ${OUT}/prokka_annotation/genome.raw.gff
 		mv ${OUT}/prokka_annotation/genome.sorted.gff > ${OUT}/prokka_annotation/genome.gff
 		ANNOTATION=${OUT}/prokka_annotation/genome.gff
 	fi
@@ -521,13 +522,14 @@ cp ${OUT}/rfam_cmscan/filtered_small_ncRNAs.gff ${OUT}/small_ncRNAs.gff
 comm "plotting small ncRNA TMP values for minimum expression cut-off evaluation"
 grep "antisense transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.gff
 grep "intergenic transcript" ${OUT}/small_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.gff
-snapt_tpm_curve.py ${OUT}/small_ncRNAs.gff ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
+snapt_tpm_curve.py ${OUT}/small_antisense_ncRNAs.gff ${OUT}/small_intergenic_ncRNAs.gff ${OUT}/expression_curve.png
 
 warning "Please inspect the ${OUT}/expression_curve.png expression curve to confirm that the sRNA expression distribution is roughly exponential. If there is a tail of low-expression transcripts that does not follow a roughly linear trend, it is recommended that you apply a cut-off and remove transcripts below a chosen minimum TPM. Note that the TPMs are available in the GFF file. It there is a long low expression tail, it is also recommended to re-run the pipeline with a higher minimum transcript coverate (-P option)."
 
 comm "pulling out fasta sequences of small ncRNAs"
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_antisense_ncRNAs.gff > ${OUT}/small_antisense_ncRNAs.fa
 bedtools getfasta -s -fi ${OUT}/hisat2_alignment/genome.fa -bed ${OUT}/small_intergenic_ncRNAs.gff > ${OUT}/small_intergenic_ncRNAs.fa
+mv ${OUT}/small_ncRNAs.gff ${OUT}/all_small_ncRNAs.gff
 
 
 ########################################################################################################

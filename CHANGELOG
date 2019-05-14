@@ -1,4 +1,7 @@
-Snapt v=0.4 (TBD)
+Snapt v=0.5 (TBD)
+	contig edge-trimming now accounts for contig names with spaces
+
+Snapt v=0.4 (March 2019)
 	use only the copy of the provided (meta)genome for all operations in case the original moved suring runtime
 	only filter out tRNA and RNAse P hits against Rfam database
 	read pipelup minimum is now different for intergenic and antisense ncRNAs
