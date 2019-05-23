@@ -1,5 +1,6 @@
 Snapt v=0.5 (TBD)
 	contig edge-trimming now accounts for contig names with spaces
+	signal recognition particles and tmRNAs are removed from Rfam hits
 
 Snapt v=0.4 (March 2019)
 	use only the copy of the provided (meta)genome for all operations in case the original moved suring runtime
