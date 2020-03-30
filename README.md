@@ -80,7 +80,7 @@ Aligment options:
 ```
 
 ### Citing SnapT
-SnapT is currently under early development. Stay tuned for future publication. 
+SnapT and its validation is outlined in the publication ["Regulatory Noncoding Small RNAs Are Diverse and Abundant in an Extremophilic Microbial Community"](https://msystems.asm.org/content/5/1/e00584-19), published in mSystems.
 
 ### Acknowledgements
 Authors of pipeline: [Gherman Uritskiy](https://github.com/ursky) and [Diego Gelsinger](https://github.com/dgelsin)
