@@ -89,5 +89,5 @@ Principal Investigator: [Jocelyne DiRuggiero](http://bio.jhu.edu/directory/jocel
 
 Institution: Johns Hopkins, [Department of Cell, Molecular, Developmental Biology, and Biophysics](http://cmdb.jhu.edu/) 
 
-All feedback is welcome! For errors and bugs, please open a new Issue thread on this github page, and we will try to get things patched as quickly as possible. Please include the version of SnapT you are using (run `snapt -v`). For general questions about the conda impementation of this software, contact Gherman Uritskiy at guritsk1@jhu.edu. For general questions or suggestions about the pipeline itself, contact Diego Gelsinger at dgelsin1@jhu.edu. 
+All feedback is welcome! For errors and bugs, please open a new Issue thread on this github page, and we will try to get things patched as quickly as possible. Please include the version of SnapT you are using (run `snapt -v`). For general questions about the conda impementation of this software, contact Gherman Uritskiy at guritsk1@jhu.edu. For general questions or suggestions about the pipeline itself, contact Diego Gelsinger at drg2165@cumc.columbia.edu. 
 
